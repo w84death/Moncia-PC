@@ -7,6 +7,8 @@ Based on 8-bit microcontroller (Arduino Uno) and home made operatin system (Monc
 
 It has input from a regular PS/2 keyboard and can output to the black &white TV. User interface is handled by graphical OS.
 
+Read more at [smol.p1x.in/moncia-pc/](https://smol.p1x.in/moncia-pc/).
+
 ## Personal Computer
 ![MoniciaPC breadboard edition](PC/pc-1.gif)
 
