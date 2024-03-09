@@ -47,7 +47,7 @@ PS2Keyboard keyboard;
 TVout TV;
 
 
-const int VERSION = 4;
+const int VERSION = 5;
 const int KB_DATA = 8;
 const int KB_SYNC =  3;
 const int WIDTH =  128;
@@ -68,6 +68,7 @@ int freeRam();
 void processCommand(char *command);
 
 void setup()  {
+  pinMode(A0, INPUT);
   TV.begin(PAL,WIDTH,HEIGH);
   TV.select_font(font4x6);
   TV.clear_screen();
@@ -77,7 +78,7 @@ void setup()  {
   play_tune();
   bootimage();
   delay(1000);
-  clear_cmd();
+  clear_cmd();  
 }
 
 int freeRam() {
@@ -157,13 +158,21 @@ void processCommand(char *command){
     
   } else if (strcmp(command, "about") == 0) {
     play_tune(TUNE_OS);
-    TV.println("MonciaOS");
-    TV.print("Version ");
-    TV.print(VERSION);    
+    TV.print("MonciaOS: alpha");
+    TV.println(VERSION);    
+    TV.print(" CC0 2024 P1X");
     
-  } else if (strcmp(command, "p1x") ==0) {
+  } else if (strcmp(command, "p1x") == 0) {
     play_tune(TUNE_POS);
     p1x();
+    
+  } else if (strcmp(command, "light") == 0) {
+    play_tune(TUNE_POS);
+    
+    for(int i=0; i<100; i++){
+      TV.println(analogRead(A0));
+      delay(50);
+    }
     
   } else {
     play_tune(TUNE_NEG);
@@ -178,18 +187,18 @@ void processCommand(char *command){
 }
 
 void loop() {
-  if (keyboard.available()) {
+  if (keyboard.available()) {    
     char c = keyboard.read();
     
     if (c == PS2_ENTER || cmdIndex == CMD_MAX) {
-      
+
       commandBuffer[cmdIndex] = '\0';
       processCommand(commandBuffer);
       cmdIndex = 0;
       memset(commandBuffer, 0, sizeof(commandBuffer));
       
     } else if (c == PS2_ESC) {
-      
+
       play_tune(TUNE_NEU);
       clear_cmd();
     
@@ -208,5 +217,6 @@ void loop() {
       commandBuffer[cmdIndex++] = c;
       TV.print(c);
     }
+    delay(50);
   }
 }
