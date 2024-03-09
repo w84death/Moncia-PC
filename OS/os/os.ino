@@ -1,60 +1,87 @@
 /*
 
 MonciaOS
-Version 0.2
+Version 0.03
 
 CC0 2024 P1X
 Made by Krzysztof Krystian Jankowski
 
-
 */
 
+#include <stdlib.h>
 #include <PS2Keyboard.h>
 #include <TVout.h>
 #include <TVoutfonts/font8x8.h>
+#include <TVoutfonts/font4x6.h>
 
-#include "intro.h"
 #include "intro2.h"
 #include "p1x.h"
 #include "wallpaper.h"
+#include "kj.h"
+
+
 
 PS2Keyboard keyboard;
 TVout TV;
+
+
 
 const int KBDATA = 8;
 const int KBSYNC =  3;
 const int WIDTH =  128;
 const int HEIGH =  96;
+
+
+
 void setup()  {
   TV.begin(PAL,WIDTH,HEIGH);
-  TV.select_font(font8x8);
+  TV.select_font(font4x6);
   TV.clear_screen();
   keyboard.begin(KBDATA, KBSYNC);
-  
-  intro();
+  bootimage();
+  delay(1000);
   reset_os();
 }
 
-void intro() {
-  /*TV.draw_rect(0,0,TV.hres()-1,TV.vres()-1,WHITE);
-  TV.print(32,32,"MonciaOS");
-  TV.print(8,72,"v0.01 @128x96");  
-  TV.print(8,82,"CC0 2024 P1X");
-  */
-  TV.bitmap(0,0,img_intro);
-  delay(3000);
-  TV.bitmap(0,0,img_intro2);
-  delay(3000);
-  TV.bitmap(0,0,img_bg);
-  TV.bitmap(64-8,48-11,img_p1x);
-  delay(3000);
+int freeRam () {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
+
+void bootimage(){
+   TV.bitmap(0,0,img_intro2);
+}
+
+void statusbar(){
+  
+  TV.print(0,0,"Memory: "); TV.print(2048-freeRam()); TV.print("/2048 bytes");
 }
 
 void reset_os(){
   TV.clear_screen();
+  TV.select_font(font4x6);
   TV.bitmap(0,0,img_bg); 
-  TV.set_cursor(0,0);
+  statusbar();
+  TV.bitmap(128-16,0,img_p1x);
+  TV.set_cursor(0,8);
   TV.print(">");
+}
+
+
+void p1x(){
+  TV.clear_screen();
+  TV.bitmap(128-85,0,img_kj);
+  delay(1000);  
+  TV.bitmap(24,24,img_p1x);
+  delay(1000);
+  TV.select_font(font8x8);
+  TV.print(4,62,"Krzysztof");
+  TV.print(4,72,"Krystian");
+  TV.print(4,82,"Jankowski");
+  TV.select_font(font4x6);
+  delay(2000);
+  reset_os();
 }
 
 void loop() {
@@ -62,16 +89,24 @@ void loop() {
     char c = keyboard.read();
     if (c == PS2_ENTER) {
       TV.println();
+      TV.println("Unknown command");
+      TV.print(">");      
     } else if (c == PS2_ESC) {
       reset_os();
     } else if (c == PS2_LEFTARROW) {
       TV.print("[Left]");
     } else if (c == PS2_RIGHTARROW) {
-      TV.print("[Right]");
+      
     } else if (c == PS2_UPARROW) {
-      TV.print("[Up]");
+      TV.select_font(font8x8);
+      TV.println();
+      TV.print(">");
     } else if (c == PS2_DOWNARROW) {
-      TV.print("[Down]");
+      TV.select_font(font4x6);
+      TV.println();
+      TV.print(">");
+    } else if (c == PS2_BACKSPACE) {
+      p1x();
     }else{
       TV.print(c);
     }
