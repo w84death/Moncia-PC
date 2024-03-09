@@ -1,7 +1,7 @@
 /*
 ------------------------------------
 MonciaOS
-Version 0.05 - 2024-03-09
+Version 0.06 - 2024-03-09
 
 CC0 2024 P1X
 Made by Krzysztof Krystian Jankowski
@@ -23,6 +23,7 @@ Quick log:
 - [done] 'about' prog
 - [done] 'free' prog
 - [done] demo prog
+- ? icons?
 
 ToDo:
 - icons
@@ -51,7 +52,7 @@ PS2Keyboard keyboard;
 TVout TV;
 
 
-const int VERSION = 5;
+const int VERSION = 6;
 const int KB_DATA = 8;
 const int KB_SYNC =  3;
 const int WIDTH =  128;
@@ -68,9 +69,16 @@ int cmdIndex = 0;
 int cmdIndexLast = 0;
 
 void bootimage();
-void clear_cmd();
-void play_tune(byte no=TUNE_POS);
+
 int freeRam();
+void bootimage();
+void prompt();
+void clear_cmd();
+void drawIcon(int id, char *title);
+void draw_desktop();
+void play_tune(byte no=TUNE_POS);
+void drawWindow(int ww=100, int wh=24);
+void p1x();
 void processCommand(char *command);
 
 void setup()  {
@@ -83,14 +91,54 @@ void setup()  {
   
   play_tune();
   bootimage();
-  delay(1000);
-  clear_cmd();  
+  
+
+  drawDesktop();
 }
 
 int freeRam() {
   extern int __heap_start, *__brkval; 
   int v; 
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
+
+void bootimage(){
+  TV.bitmap(0,0,img_intro2); delay(1000);
+}
+
+void prompt(){
+  TV.draw_rect(6,80,110,12,WHITE,BLACK);
+  TV.set_cursor(10,84);
+  TV.print("> ");
+}
+
+void clear_cmd(){
+  TV.select_font(font4x6);
+  cmdIndex = 0;
+  memset(commandBuffer, 0, sizeof(commandBuffer));
+  prompt();
+}
+
+void drawIcon(int id, char *title){
+  int ix = 8 + (id%3)*38;
+  int iy = 4 + (id/3)*38;
+  
+  TV.draw_rect(ix,iy,32,32,BLACK,WHITE);
+  TV.set_cursor(ix+2,iy+2);
+  TV.print(title);
+}
+
+void drawDesktop(){
+  TV.bitmap(0,0,img_bg);
+  clear_cmd();
+  
+  drawIcon(0,"Free");
+  drawIcon(1,"About");
+  drawIcon(2,"P1X");
+  drawIcon(3,"Writer");
+  drawIcon(4,"Piano");
+  
+  prompt();
 }
 
 void play_tune(byte no=TUNE_POS){
@@ -120,24 +168,6 @@ void play_tune(byte no=TUNE_POS){
   }
 }
 
-void bootimage(){
-  TV.bitmap(0,0,img_intro2);   
-}
-
-void prompt(){
-  TV.draw_rect(6,80,110,12,WHITE,BLACK);
-  TV.set_cursor(10,84);
-  TV.print("> ");
-}
-
-void clear_cmd(){
-  TV.clear_screen();
-  TV.select_font(font4x6);
-  TV.bitmap(0,0,img_bg);
-  cmdIndex = 0;
-  memset(commandBuffer, 0, sizeof(commandBuffer));
-  prompt();
-}
 
 
 void p1x(){
@@ -155,8 +185,10 @@ void p1x(){
   TV.tone(392,75);delay(100);
   delay(2000);
   TV.select_font(font4x6);
-  clear_cmd();
+  drawDesktop();
 }
+
+
 
 void drawWindow(int ww=100, int wh=24){
   int wx = 64 - ww/2;
@@ -214,12 +246,12 @@ void loop() {
       processCommand(commandBuffer);
       strcpy(commandBufferLast,commandBuffer);
       cmdIndexLast = cmdIndex;
-      clear_cmd();
+      drawDesktop();
         
     } else if (c == PS2_ESC) {
 
       play_tune(TUNE_NEU);
-      clear_cmd();
+      drawDesktop();
       
     } else if (c == PS2_BACKSPACE) {
       if (cmdIndex > 0) {
