@@ -1,7 +1,7 @@
 /*
 ------------------------------------
 MonciaOS
-Version 0.04 - 2024-03-09
+Version 0.05 - 2024-03-09
 
 CC0 2024 P1X
 Made by Krzysztof Krystian Jankowski
