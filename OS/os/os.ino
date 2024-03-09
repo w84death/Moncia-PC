@@ -15,13 +15,17 @@ Quick log:
 - [done] soldered hat PC
 - [done] soldered pizo speaker
 - [done] tunes for the OS
-- 
+- [done] input for apps
+- [done] backspace for fixing typos
+- [done] up arrow for last command
+- [done] desktop wallpaper
+- [done] window with button
+- [done] 'about' prog
+- [done] 'free' prog
+- [done] demo prog
 
 ToDo:
-- desktop
 - icons
-- about/status prog
-- demo prog
 - text editor prog
 - piano prog
 - SD card read/write
@@ -59,7 +63,9 @@ const int TUNE_NEG = 2;
 const int TUNE_NEU = 3;
 
 char commandBuffer[CMD_MAX + 1];
+char commandBufferLast[CMD_MAX + 1];
 int cmdIndex = 0;
+int cmdIndexLast = 0;
 
 void bootimage();
 void clear_cmd();
@@ -118,13 +124,19 @@ void bootimage(){
   TV.bitmap(0,0,img_intro2);   
 }
 
+void prompt(){
+  TV.draw_rect(6,80,110,12,WHITE,BLACK);
+  TV.set_cursor(10,84);
+  TV.print("> ");
+}
+
 void clear_cmd(){
   TV.clear_screen();
   TV.select_font(font4x6);
-  TV.bitmap(0,0,img_bg); 
-  TV.bitmap(128-16,0,img_p1x);
-  TV.set_cursor(0,8);
-  TV.print(">");
+  TV.bitmap(0,0,img_bg);
+  cmdIndex = 0;
+  memset(commandBuffer, 0, sizeof(commandBuffer));
+  prompt();
 }
 
 
@@ -146,47 +158,53 @@ void p1x(){
   clear_cmd();
 }
 
-void processCommand(char *command){
-  TV.println();
-  TV.print(" ");
+void drawWindow(int ww=100, int wh=24){
+  int wx = 64 - ww/2;
+  int wy = 48 - wh/2;  
+  TV.draw_rect(wx,wy,ww,wh,WHITE,BLACK);
+
+  TV.draw_rect(64-18,wy+wh+2,36,12,WHITE,BLACK);
+  TV.set_cursor(64-10,wy+wh+4+2);
+  TV.print("Close");
   
+  TV.set_cursor(wx+4,wy+4);
+
+}
+
+void processCommand(char *command){
   if (strcmp(command, "free") == 0) {
     play_tune(TUNE_POS);
+    drawWindow(100,14);
     TV.print("Free RAM: ");
     TV.print(freeRam());
     TV.print(" bytes");
     
   } else if (strcmp(command, "about") == 0) {
     play_tune(TUNE_OS);
-    TV.print("MonciaOS: alpha");
-    TV.println(VERSION);    
-    TV.print(" CC0 2024 P1X");
+    drawWindow(100,50);
+    TV.set_cursor(35,28);
+    TV.print("MonciaOS: alpha");TV.print(VERSION);    
+    TV.bitmap(64-8,48-11,img_p1x);
+    TV.set_cursor(40,62);
+    TV.print("CC0 2024 P1X");
     
   } else if (strcmp(command, "p1x") == 0) {
     play_tune(TUNE_POS);
     p1x();
-    
-  } else if (strcmp(command, "light") == 0) {
-    play_tune(TUNE_POS);
-    
-    for(int i=0; i<100; i++){
-      TV.println(analogRead(A0));
-      delay(50);
-    }
-    
+   
   } else {
+    drawWindow(100,14);
     play_tune(TUNE_NEG);
     TV.print("Unknown command");
-    
+      
   }
 
-  TV.println();
-  TV.println();
-  TV.print(">");
-  
+  while (!keyboard.available()) {}
+  keyboard.read();
 }
 
 void loop() {
+  
   if (keyboard.available()) {    
     char c = keyboard.read();
     
@@ -194,29 +212,43 @@ void loop() {
 
       commandBuffer[cmdIndex] = '\0';
       processCommand(commandBuffer);
-      cmdIndex = 0;
-      memset(commandBuffer, 0, sizeof(commandBuffer));
-      
+      strcpy(commandBufferLast,commandBuffer);
+      cmdIndexLast = cmdIndex;
+      clear_cmd();
+        
     } else if (c == PS2_ESC) {
 
       play_tune(TUNE_NEU);
       clear_cmd();
-    
+      
+    } else if (c == PS2_BACKSPACE) {
+      if (cmdIndex > 0) {
+        play_tune(TUNE_NEU);
+        cmdIndex--;
+        commandBuffer[cmdIndex] = '\0';
+        prompt();
+        TV.print(commandBuffer);
+      }else{
+        play_tune(TUNE_NEG);
+      }
     } else if (c == PS2_LEFTARROW) {
       
     } else if (c == PS2_RIGHTARROW) {
       
     } else if (c == PS2_UPARROW) {
-      
-    } else if (c == PS2_DOWNARROW) {
-      
-    } else if (c == PS2_BACKSPACE) {
-      
+      strcpy(commandBuffer,commandBufferLast);
+      prompt();
+      TV.print(commandBuffer);
+      cmdIndex = cmdIndexLast;
+          
+    } else if (c == PS2_DOWNARROW) {  
+        
     }else{
       TV.tone(523,50);
       commandBuffer[cmdIndex++] = c;
       TV.print(c);
     }
+ 
     delay(50);
   }
 }
