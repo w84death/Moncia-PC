@@ -23,10 +23,10 @@ Quick log:
 - [done] 'about' prog
 - [done] 'free' prog
 - [done] demo prog
-- ? icons?
+- [done] basic icons
 
 ToDo:
-- icons
+- icons glyphs
 - text editor prog
 - piano prog
 - SD card read/write
@@ -34,7 +34,7 @@ ToDo:
 - amiga mouse input
 
 */
-//#include <string.h>
+
 #include <stdlib.h>
 #include <PS2Keyboard.h>
 #include <TVout.h>
@@ -53,31 +53,32 @@ TVout TV;
 
 
 const int VERSION = 6;
-const int KB_DATA = 8;
-const int KB_SYNC =  3;
-const int WIDTH =  128;
-const int HEIGH =  96;
-const int CMD_MAX = 24;
-const int TUNE_OS = 0;
-const int TUNE_POS = 1;
-const int TUNE_NEG = 2;
-const int TUNE_NEU = 3;
+const byte KB_DATA = 8;
+const byte KB_SYNC =  3;
+const byte WIDTH =  128;
+const byte HEIGH =  96;
+const byte CMD_MAX = 24;
+const byte TUNE_OS = 0;
+const byte TUNE_POS = 1;
+const byte TUNE_NEG = 2;
+const byte TUNE_NEU = 3;
+const byte WALLPAPERS = 4;
 
 char commandBuffer[CMD_MAX + 1];
 char commandBufferLast[CMD_MAX + 1];
-int cmdIndex = 0;
-int cmdIndexLast = 0;
-
+byte cmdIndex = 0;
+byte cmdIndexLast = 0;
+byte wallpaper = 2;
 void bootimage();
 
 int freeRam();
 void bootimage();
 void prompt();
 void clear_cmd();
-void drawIcon(int id, char *title);
+void drawIcon(const int id, const char *title);
 void draw_desktop();
-void play_tune(byte no=TUNE_POS);
-void drawWindow(int ww=100, int wh=24);
+void play_tune(const byte no);
+void drawWindow(const int ww, const int wh);
 void p1x();
 void processCommand(char *command);
 
@@ -89,7 +90,7 @@ void setup()  {
   keyboard.begin(KB_DATA, KB_SYNC);
   memset(commandBuffer, 0, sizeof(commandBuffer));
   
-  play_tune();
+  play_tune(TUNE_OS);
   bootimage();
   
 
@@ -107,6 +108,7 @@ void bootimage(){
 }
 
 void prompt(){
+  TV.draw_rect(6+2,80+2,110,12,BLACK,BLACK);
   TV.draw_rect(6,80,110,12,WHITE,BLACK);
   TV.set_cursor(10,84);
   TV.print("> ");
@@ -119,29 +121,72 @@ void clear_cmd(){
   prompt();
 }
 
-void drawIcon(int id, char *title){
+void drawIcon(const int id, const char *title){
   int ix = 8 + (id%3)*38;
   int iy = 4 + (id/3)*38;
-  
+  TV.draw_rect(ix+2,iy+2,32,32,BLACK,BLACK);
   TV.draw_rect(ix,iy,32,32,BLACK,WHITE);
   TV.set_cursor(ix+2,iy+2);
   TV.print(title);
 }
 
+void drawWindow(const int ww, const int wh){
+  int wx = 64 - ww/2;  
+  int wy = 48 - wh/2;
+  if (wh>48) { wy = 4; }
+    
+  TV.draw_rect(wx+4,wy+4,ww,wh,BLACK,BLACK);
+  TV.draw_rect(wx,wy,ww,wh,WHITE,BLACK);
+
+  TV.draw_rect(64-18+4,wy+wh+4+4,36,12,BLACK,BLACK);
+  TV.draw_rect(64-18,wy+wh+4,36,12,WHITE,BLACK);
+  TV.set_cursor(64-10,wy+wh+6+2);
+  TV.print("Close");
+  
+  TV.set_cursor(wx+4,wy+4);
+
+}
+
 void drawDesktop(){
-  TV.bitmap(0,0,img_bg);
+  
+  if (wallpaper == 0) {
+    TV.fill(WHITE);
+    for (int y=2;y<95;y=y+6){
+      TV.draw_row(y,2,126,BLACK);
+    }
+  } else if (wallpaper == 1){
+    TV.fill(WHITE);
+    for (int x=2;x<127;x=x+6){
+      TV.draw_column(x,2,94,BLACK);
+    }
+  } else if (wallpaper == 2){
+    TV.fill(WHITE);
+    int lx=2 + rand()%126;
+    int ly=2 + rand()%94;
+    for (int i=0;i<14;i++){
+      int x=2+rand()%126;
+      int y=2+rand()%94;
+      TV.draw_line(lx,ly,x,y,BLACK);
+      lx = x;
+      ly = y;
+    }
+  } else if (wallpaper == 3){
+    TV.bitmap(0,0,img_bg);
+  }
+  
   clear_cmd();
   
   drawIcon(0,"Free");
   drawIcon(1,"About");
-  drawIcon(2,"P1X");
-  drawIcon(3,"Writer");
-  drawIcon(4,"Piano");
+  drawIcon(2,"Look");
+  drawIcon(3,"P1X");
+  //drawIcon(3,"Writer");
+  //drawIcon(4,"Piano");
   
   prompt();
 }
 
-void play_tune(byte no=TUNE_POS){
+void play_tune(const byte no){
 
   if (no==TUNE_OS){ // MonciaOS tune
     TV.tone(1000,200);delay(100);
@@ -188,47 +233,51 @@ void p1x(){
   drawDesktop();
 }
 
-
-
-void drawWindow(int ww=100, int wh=24){
-  int wx = 64 - ww/2;
-  int wy = 48 - wh/2;  
-  TV.draw_rect(wx,wy,ww,wh,WHITE,BLACK);
-
-  TV.draw_rect(64-18,wy+wh+2,36,12,WHITE,BLACK);
-  TV.set_cursor(64-10,wy+wh+4+2);
-  TV.print("Close");
-  
-  TV.set_cursor(wx+4,wy+4);
-
-}
-
 void processCommand(char *command){
   if (strcmp(command, "free") == 0) {
-    play_tune(TUNE_POS);
+    
     drawWindow(100,14);
     TV.print("Free RAM: ");
     TV.print(freeRam());
     TV.print(" bytes");
+    play_tune(TUNE_POS);
     
   } else if (strcmp(command, "about") == 0) {
-    play_tune(TUNE_OS);
-    drawWindow(100,50);
-    TV.set_cursor(35,28);
-    TV.print("MonciaOS: alpha");TV.print(VERSION);    
-    TV.bitmap(64-8,48-11,img_p1x);
-    TV.set_cursor(40,62);
-    TV.print("CC0 2024 P1X");
     
-  } else if (strcmp(command, "p1x") == 0) {
+    drawWindow(100,50);
+    TV.set_cursor(35,8);
+    TV.print("MonciaOS: alpha ");TV.print(VERSION);    
+    TV.bitmap(64-8,20,img_p1x);
+    TV.set_cursor(40,47);
+    TV.print("CC0 2024 P1X");
+    play_tune(TUNE_OS);
+    
+  } else if (strcmp(command, "look") == 0) {
+    
+    wallpaper++;
+    if (wallpaper == WALLPAPERS) { wallpaper=0; }
+    
+    drawWindow(100,60);
+    TV.print("Wallpaper changed to ");
+    TV.print(wallpaper+1);
+    TV.set_cursor(20,24);
+    TV.print("[1] - lines horizontal");
+    TV.set_cursor(20,34);
+    TV.print("[2] - lines vertical");
+    TV.set_cursor(20,44);
+    TV.print("[3] - digital art");
+    TV.set_cursor(20,54);
+    TV.print("[4] - gradient");
     play_tune(TUNE_POS);
+   
+  } else if (strcmp(command, "p1x") == 0) {
     p1x();
    
   } else {
     drawWindow(100,14);
-    play_tune(TUNE_NEG);
     TV.print("Unknown command");
-      
+    play_tune(TUNE_NEG);
+          
   }
 
   while (!keyboard.available()) {}
