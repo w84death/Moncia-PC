@@ -29,9 +29,12 @@ Quick log:
 - [done] new look and feel
 - [done] updated look app
 - [release] alpha 7
+- [done] screensaver
+- [done] dim background under windows
+- 
 
 ToDo:
-- icons glyphs
+- arrow selection for icons
 - text editor prog
 - piano prog
 - SD card read/write
@@ -42,6 +45,7 @@ ToDo:
 
 #include <avr/pgmspace.h>
 #include <stdlib.h>
+#include <math.h>
 #include <PS2Keyboard.h>
 #include <TVout.h>
 #include <TVoutfonts/font8x8.h>
@@ -57,7 +61,7 @@ PS2Keyboard keyboard;
 TVout TV;
 
 
-const int VERSION = 7;
+const int VERSION = 8;
 const byte KB_DATA = 8;
 const byte KB_SYNC =  3;
 const byte WIDTH =  128;
@@ -95,11 +99,13 @@ const char TXT_KRZYSZTOF[24] PROGMEM = "Krzysztof\0";
 const char TXT_KRYSTIAN[24] PROGMEM = "Krystian\0";
 const char TXT_JANKOWSKI[24] PROGMEM = "Jankowski\0";
 
-static char commandBuffer[CMD_MAX + 1];
-static char commandBufferLast[CMD_MAX + 1];
-static byte cmdIndex = 0;
-static byte cmdIndexLast = 0;
-static byte wallpaper = 0;
+char commandBuffer[CMD_MAX + 1];
+char commandBufferLast[CMD_MAX + 1];
+byte cmdIndex = 0;
+byte cmdIndexLast = 0;
+byte wallpaper = 0;
+unsigned long lastActivityTime = 0;
+const unsigned long screensaverTimeout = 60000;
 
 static int freeRam();
 static void bootimage();
@@ -139,9 +145,9 @@ static void bootimage(){
 }
 
 static void prompt(){
-  TV.draw_rect(6+2,80+2,110,12,BLACK,BLACK);
-  TV.draw_rect(6,80,110,12,WHITE,BLACK);
-  TV.set_cursor(10,84);
+  TV.draw_rect(6+2,74+2,110,12,BLACK,BLACK);
+  TV.draw_rect(6,74,110,12,WHITE,BLACK);
+  TV.set_cursor(10,78);
   TV.print("> ");
 }
 
@@ -319,6 +325,42 @@ static void appLook(){
   free(txtBuff2);
 }
 
+static void activateScreensaver(){
+
+  byte lx=2 + rand()%126;
+  byte ly=2 + rand()%94;
+  byte x,y;  
+
+  TV.bitmap(0,0,img_wallpaper0);
+  
+  while (!keyboard.available()) {  
+    x = 64 + sin(millis()*0.0077f) * 24 + (sin(millis()*0.017)*40); //40
+    y = 48 + cos(millis()*0.0066f) * 24 + (sin(millis()*0.013)*24); //24
+    if (millis() % 10000 == 0){
+      TV.bitmap(0,0,img_wallpaper0);
+    }
+    TV.draw_line(lx,ly,x,y,BLACK);
+    lx = x;
+    ly = y;
+  }
+}
+
+static void splash(){
+  TV.bitmap(0,0,img_title); 
+  while (!keyboard.available()) { }
+  keyboard.read();  
+}
+
+static void dim_screen(){
+  static int x,y;
+  for (y=0;y<96;y=y+4){
+    TV.draw_row(y,0,128,BLACK);
+  }
+  for (x=0;x<128;x=x+8){
+    TV.draw_column(x,0,96,BLACK);
+  }
+}
+
 static void p1x(){
   char txtBuff[24];
   
@@ -344,9 +386,10 @@ static void p1x(){
 
 void processCommand(char *command){
   char txtBuff[24];
+
   
   if (strcmp(command, "free") == 0) {
-    
+    dim_screen();
     drawWindow(100,14);
     strcpy_P(txtBuff,TXT_FREERAM);
     TV.print(txtBuff);
@@ -354,9 +397,16 @@ void processCommand(char *command){
     strcpy_P(txtBuff,TXT_BYTES);
     TV.print(txtBuff);
     play_tune(TUNE_POS);
-    
+  } else if (strcmp(command, "ss") == 0) {  
+    activateScreensaver();
+    play_tune(TUNE_POS);
+  
+  } else if (strcmp(command, "moncia") == 0) {  
+    play_tune(TUNE_POS);
+    splash();
+        
   } else if (strcmp(command, "about") == 0) {
-    
+    dim_screen();
     drawWindow(100,50);
     TV.set_cursor(35,8);
     strcpy_P(txtBuff,TXT_MONCIAABOUT);
@@ -368,7 +418,9 @@ void processCommand(char *command){
     play_tune(TUNE_OS);
     
   } else if (strcmp(command, "look") == 0) {
+    dim_screen();
     appLook();
+    
     _delay_ms(15);
     
     drawWindow(60,14);
@@ -380,6 +432,7 @@ void processCommand(char *command){
     p1x();
    
   } else {
+    dim_screen();
     drawWindow(100,14);
     strcpy_P(txtBuff,TXT_UNKNOWN);
     TV.print(txtBuff);
@@ -436,7 +489,13 @@ void loop() {
       commandBuffer[cmdIndex++] = c;
       TV.print(c);
     }
- 
+
+    lastActivityTime = millis();
     _delay_ms(5);
+  }
+
+  if (millis() - lastActivityTime > screensaverTimeout) {
+      activateScreensaver();
+      drawDesktop();
   }
 }

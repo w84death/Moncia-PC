@@ -17,7 +17,17 @@ Read more at [smol.p1x.in/moncia-pc/](https://smol.p1x.in/moncia-pc/).
 ![MoniciaPC as Arduino Hat](PC/pc-1.jpg)
 
 ## Operating System
+
+### Alpha 7
 ![MoniciaOS alpha 7](OS/os-2.jpeg)
 ![MoniciaOS alpha 7](OS/os-3.jpeg)
 ![MoniciaOS alpha 7](OS/os-4.jpeg)
 ![MoniciaOS alpha 7](OS/os-5.jpeg)
+
+### Alpha 8
+
+> Sketch uses 19916 bytes (61%) of program storage space. Maximum is 32256 bytes.
+> Global variables use 272 bytes (13%) of dynamic memory, leaving 1776 bytes for local variables. Maximum is 2048 bytes.
+
+Memory free: 232 bytes
+
