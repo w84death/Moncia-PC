@@ -10,7 +10,14 @@ It has input from a regular PS/2 keyboard and can output to the black &white TV.
 Read more at [smol.p1x.in/moncia-pc/](https://smol.p1x.in/moncia-pc/).
 
 ## Personal Computer
-![MoniciaPC breadboard edition](PC/pc-1.gif)
+### Breadboard Edition
+![MoniciaPC breadboard edition](PC/pc-0.gif)
+
+### Arduino Hat
+![MoniciaPC as Arduino Hat](PC/pc-1.jpg)
 
 ## Operating System
-![MoniciaOS first screenshot](OS/os-1.gif)
+![MoniciaOS alpha 7](OS/os-2.jpeg)
+![MoniciaOS alpha 7](OS/os-3.jpeg)
+![MoniciaOS alpha 7](OS/os-4.jpeg)
+![MoniciaOS alpha 7](OS/os-5.jpeg)
