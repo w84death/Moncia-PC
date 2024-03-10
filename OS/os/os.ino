@@ -52,7 +52,7 @@ PS2Keyboard keyboard;
 TVout TV;
 
 
-const int VERSION = 6;
+const int VERSION = 7;
 const byte KB_DATA = 8;
 const byte KB_SYNC =  3;
 const byte WIDTH =  128;
@@ -75,10 +75,10 @@ int freeRam();
 void bootimage();
 void prompt();
 void clear_cmd();
-void drawIcon(const int id, const char *title);
+void drawIcon(const byte id, const char *title);
 void draw_desktop();
 void play_tune(const byte no);
-void drawWindow(const int ww, const int wh);
+void drawWindow(const byte ww, const byte wh);
 void p1x();
 void processCommand(char *command);
 
@@ -121,18 +121,18 @@ void clear_cmd(){
   prompt();
 }
 
-void drawIcon(const int id, const char *title){
-  int ix = 8 + (id%3)*38;
-  int iy = 4 + (id/3)*38;
-  TV.draw_rect(ix+2,iy+2,32,32,BLACK,BLACK);
-  TV.draw_rect(ix,iy,32,32,BLACK,WHITE);
+void drawIcon(const byte id, const char *title){
+  const byte ix = 8 + (id%3)*38;
+  const byte iy = 4 + (id/3)*22;
+  TV.draw_rect(ix+2,iy+2,32,16,BLACK,BLACK);
+  TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
   TV.set_cursor(ix+2,iy+2);
   TV.print(title);
 }
 
-void drawWindow(const int ww, const int wh){
-  int wx = 64 - ww/2;  
-  int wy = 48 - wh/2;
+void drawWindow(const byte ww, const byte wh){
+  const byte wx = 64 - ww/2;  
+  byte wy = 48 - wh/2;
   if (wh>48) { wy = 4; }
     
   TV.draw_rect(wx+4,wy+4,ww,wh,BLACK,BLACK);
@@ -164,8 +164,8 @@ void drawDesktop(){
     int lx=2 + rand()%126;
     int ly=2 + rand()%94;
     for (int i=0;i<14;i++){
-      int x=2+rand()%126;
-      int y=2+rand()%94;
+      const int x=2+rand()%126;
+      const int y=2+rand()%94;
       TV.draw_line(lx,ly,x,y,BLACK);
       lx = x;
       ly = y;
@@ -179,9 +179,9 @@ void drawDesktop(){
   drawIcon(0,"Free");
   drawIcon(1,"About");
   drawIcon(2,"Look");
-  drawIcon(3,"P1X");
-  //drawIcon(3,"Writer");
-  //drawIcon(4,"Piano");
+  drawIcon(4,"P1X");
+  //drawIcon(4,"Writer");
+  //drawIcon(5,"Piano");
   
   prompt();
 }
