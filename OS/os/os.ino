@@ -61,7 +61,7 @@ PS2Keyboard keyboard;
 TVout TV;
 
 
-const int VERSION = 8;
+const int VERSION = 9;
 const byte KB_DATA = 8;
 const byte KB_SYNC =  3;
 const byte WIDTH =  128;
@@ -90,7 +90,7 @@ const char TXT_FREERAM[24] PROGMEM = "Free RAM: \0";
 const char TXT_BYTES[24] PROGMEM = " bytes\0";
 const char TXT_LOOKTITLE[24] PROGMEM =  "----= System look =----\0";
 const char TXT_LOOKTITLE2[24] PROGMEM = "Wallpaper: \0";
-const char TXT_LOOK1[24] PROGMEM =      " * Clean white     \0";
+const char TXT_LOOK1[24] PROGMEM =      " * White fill      \0";
 const char TXT_LOOK2[24] PROGMEM =      " * Lines horizontal\0";
 const char TXT_LOOK3[24] PROGMEM =      " * Lines vertical  \0";
 const char TXT_LOOK4[24] PROGMEM =      " * Digital art     \0";
@@ -106,12 +106,13 @@ byte cmdIndexLast = 0;
 byte wallpaper = 0;
 unsigned long lastActivityTime = 0;
 const unsigned long screensaverTimeout = 60000;
+byte selectedIcon = 0;
 
 static int freeRam();
 static void bootimage();
 static void prompt();
 static void clear_cmd();
-static void drawIcon(const byte pos, const byte id);
+static void drawIcon(const byte pos, const byte id, const bool selected);
 static void draw_desktop();
 static void play_tune(const byte no);
 static void drawWindow(const byte ww, const byte wh, const bool btn = true);
@@ -156,12 +157,14 @@ static void clear_cmd(){
   memset(commandBuffer, 0, sizeof(commandBuffer));
 }
 
-static void drawIcon(const byte pos, const byte id){
+static void drawIcon(const byte pos, const byte id, const bool selected = false){
   char txtBuff[8];
   const byte ix = 8 + (pos%3)*38;
   const byte iy = 4 + (pos/3)*22;
   TV.draw_rect(ix+2,iy+2,32,16,BLACK,BLACK);
-  TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
+  if (selected) TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
+  else TV.draw_rect(ix,iy,32,16,BLACK,BLACK);
+  
   TV.set_cursor(ix+2,iy+2);
 
   switch (id) {
@@ -231,12 +234,12 @@ static void drawDesktop(){
     break;
   }
   
-  drawIcon(0,0);
-  drawIcon(1,1);
-  drawIcon(2,2);
-  drawIcon(4,3);
-  drawIcon(5,4);
-  drawIcon(7,5);
+  drawIcon(0,0,selectedIcon == 0);
+  drawIcon(1,1,selectedIcon == 1);
+  drawIcon(2,2,selectedIcon == 2);
+  drawIcon(4,3,selectedIcon == 3);
+  drawIcon(5,4,selectedIcon == 4);
+  drawIcon(7,5,selectedIcon == 5);
 
   clear_cmd();
   prompt();
@@ -342,6 +345,7 @@ static void activateScreensaver(){
     TV.draw_line(lx,ly,x,y,BLACK);
     lx = x;
     ly = y;
+    //TV.tone(50+x+y*10,4);
   }
 }
 
@@ -473,9 +477,17 @@ void loop() {
         play_tune(TUNE_NEG);
       }
     } else if (c == PS2_LEFTARROW) {
-      
+      if (selectedIcon>0){ 
+        selectedIcon--;
+        TV.tone(523,50);
+        drawDesktop();
+      }
     } else if (c == PS2_RIGHTARROW) {
-      
+      if (selectedIcon<5) { 
+        selectedIcon++; 
+        TV.tone(523,50);
+        drawDesktop(); 
+      }
     } else if (c == PS2_UPARROW) {
       strcpy(commandBuffer,commandBufferLast);
       prompt();
