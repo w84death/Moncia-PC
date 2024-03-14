@@ -34,6 +34,10 @@ Quick log:
 - [done] arrows to select icons app
 - [done] enter for running apps from icon selection 
 - [done] fixed root problem for crashing (one global text buffer without free())
+- [done] 4 arrows for selecting icons 
+- [done] nicer keyboard sound
+- [done] removed last command history
+- [release] alpha 7
 
 ToDo:
 - SD card read/write
@@ -69,9 +73,11 @@ const byte WIDTH =  128;
 const byte HEIGH =  96;
 const byte CMD_MAX = 24;
 const byte TUNE_OS = 0;
-const byte TUNE_POS = 1;
-const byte TUNE_NEG = 2;
-const byte TUNE_NEU = 3;
+const byte TUNE_KB = 1;
+const byte TUNE_POS = 2;
+const byte TUNE_NEG = 3;
+const byte TUNE_NEU = 4;
+
 const byte WALLPAPERS = 3;
 const byte ICONS = 7;
 
@@ -105,12 +111,12 @@ const char TXT_KRYSTIAN[24] PROGMEM = "Krystian\0";
 const char TXT_JANKOWSKI[24] PROGMEM = "Jankowski\0";
 
 char commandBuffer[CMD_MAX + 1];
-char commandBufferLast[CMD_MAX + 1];
 char txtBuf[24];
 char txtBuf8[8];
 byte cmdIndex = 0;
 byte cmdIndexLast = 0;
 byte iconIndex = 0;
+byte iconsColumns = 3;
 byte wallpaper = 0;
 unsigned long lastActivityTime = 0;
 const unsigned long screensaverTimeout = 60000;
@@ -166,8 +172,8 @@ void clear_cmd(){
 }
 
 void drawIcon(const byte pos, const byte id, const bool selected = false){
-  const byte ix = 8 + (pos%3)*38;
-  const byte iy = 4 + (pos/3)*22;
+  const byte ix = 8 + (pos%iconsColumns)*38;
+  const byte iy = 4 + (pos/iconsColumns)*22;
   TV.draw_rect(ix+2,iy+2,32,16,BLACK,BLACK);
   if (selected) TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
   else TV.draw_rect(ix,iy,32,16,BLACK,BLACK);
@@ -263,7 +269,10 @@ void play_tune(const byte no){
     TV.tone(300,500);_delay_ms(20);
     TV.tone(1500,200);_delay_ms(10);
     TV.tone(3000,200);_delay_ms(20);
-   }else
+  }else
+  if (no==TUNE_KB){ // Keyboard click
+    TV.tone(100,50);_delay_ms(10);
+ }else
   if (no==TUNE_POS){ // positive
     TV.tone(261,100);_delay_ms(10);
     TV.tone(329,100);_delay_ms(10);
@@ -309,22 +318,24 @@ void appLook(){
   while (char c = keyboard.read()) {
       if (c == PS2_LEFTARROW) {       
         if (wallpaper > 0) wallpaper--;       
-        TV.tone(523,50);
+        play_tune(TUNE_KB);
       } else if (c == PS2_RIGHTARROW) {
         if (wallpaper < WALLPAPERS) wallpaper++;
-        TV.tone(523,50);
+        play_tune(TUNE_KB);
       } else if (c == PS2_UPARROW) {
             
       } else if (c == PS2_DOWNARROW) {  
        
       } else if (c == PS2_ESC) {  
         wallpaper = wallpaperSave;
+        play_tune(TUNE_NEG);
         break;
       } else if (c == PS2_ENTER) {  
         dimScreen;
         drawWindow(40,16);
         strcpy_P(txtBuf,TXT_DONE);
         TV.print(txtBuf);
+        play_tune(TUNE_POS);
         break;
       }
 
@@ -494,12 +505,6 @@ void loop() {
     if (c == PS2_ENTER || cmdIndex == CMD_MAX) {
       commandBuffer[cmdIndex] = '\0';
       processCommand(commandBuffer);
-      
-      if (cmdIndex > 0){        
-        strcpy(commandBufferLast,commandBuffer);
-        cmdIndexLast = cmdIndex;       
-      }
-      
       drawDesktop();
       
     } else if (c == PS2_ESC) {
@@ -519,25 +524,29 @@ void loop() {
     } else if (c == PS2_LEFTARROW) {
       if (iconIndex>0){ 
         iconIndex--;
-        TV.tone(523,50);
+        play_tune(TUNE_KB);
         drawDesktop();
       }
     } else if (c == PS2_RIGHTARROW) {
       if (iconIndex<ICONS) { 
         iconIndex++; 
-        TV.tone(523,50);
+        play_tune(TUNE_KB);
         drawDesktop(); 
       }
     } else if (c == PS2_UPARROW) {
-      strcpy(commandBuffer,commandBufferLast);
-      prompt();
-      TV.print(commandBuffer);
-      cmdIndex = cmdIndexLast;
-          
+      if (iconIndex-iconsColumns>=0){ 
+        iconIndex-=iconsColumns;
+        play_tune(TUNE_KB);
+        drawDesktop();
+      }   
     } else if (c == PS2_DOWNARROW) {  
-        
+      if (iconIndex+iconsColumns<ICONS){ 
+        iconIndex+=iconsColumns;
+        play_tune(TUNE_KB);
+        drawDesktop();
+      }   
     }else{
-      TV.tone(523,50);
+      play_tune(TUNE_KB);
       commandBuffer[cmdIndex++] = c;
       TV.print(c);
     }
