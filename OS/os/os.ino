@@ -37,7 +37,11 @@ Quick log:
 - [done] 4 arrows for selecting icons 
 - [done] nicer keyboard sound
 - [done] removed last command history
-- [release] alpha 7
+- [release] alpha 8
+- [done] stars screensaver
+- [done] screensaver setting in look app
+- [done] removed command prompt
+- [release] alpha 9 / 188b free
 
 ToDo:
 - SD card read/write
@@ -61,25 +65,26 @@ ToDo:
 #include "p1x.h"
 #include "kj.h"
 
-
 PS2Keyboard keyboard;
 TVout TV;
 
+#define VERSION 10
 
-const int VERSION = 9;
-const byte KB_DATA = 8;
-const byte KB_SYNC =  3;
-const byte WIDTH =  128;
-const byte HEIGH =  96;
-const byte CMD_MAX = 24;
-const byte TUNE_OS = 0;
-const byte TUNE_KB = 1;
-const byte TUNE_POS = 2;
-const byte TUNE_NEG = 3;
-const byte TUNE_NEU = 4;
-
-const byte WALLPAPERS = 3;
-const byte ICONS = 7;
+#define KB_DATA 8
+#define KB_SYNC 3
+#define WIDTH 112
+#define HEIGHT 96
+#define TUNE_OS 0
+#define TUNE_KB 1
+#define TUNE_POS 2
+#define TUNE_NEG 3
+#define TUNE_NEU 4
+#define NUM_STARS 24
+#define SCREENSAVER_TIMEOUT 60000
+#define WALLPAPERS 4
+#define ICONS 7
+#define ICONS_COLUMNS 3
+#define SCREENSAVERS 2
 
 const char TXT_ICON0[8] PROGMEM = "Free\0";
 const char TXT_ICON1[8] PROGMEM = "About\0";
@@ -99,53 +104,62 @@ const char TXT_DONE[24] PROGMEM = "Done\0";
 const char TXT_CC[24] PROGMEM = "CC0 2024 P1X\0";
 const char TXT_FREERAM[24] PROGMEM = "Free RAM: \0";
 const char TXT_BYTES[24] PROGMEM = " bytes\0";
-const char TXT_LOOKTITLE[24] PROGMEM =  "----= System look =----\0";
-const char TXT_LOOKTITLE2[24] PROGMEM = "Wallpaper: \0";
+const char TXT_LOOKTITLE_WP[24] PROGMEM = "Wallpaper:\0";
+const char TXT_LOOKTITLE_SS[24] PROGMEM = "ScreenSaver:\0";
 const char TXT_LOOK1[24] PROGMEM =      " * White fill      \0";
 const char TXT_LOOK2[24] PROGMEM =      " * Lines horizontal\0";
 const char TXT_LOOK3[24] PROGMEM =      " * Lines vertical  \0";
 const char TXT_LOOK4[24] PROGMEM =      " * Digital art     \0";
+const char TXT_LOOK5[24] PROGMEM =      " * Sinusoid Artist \0";
+const char TXT_LOOK6[24] PROGMEM =      " * Starfield       \0";
 const char TXT_LOOKTIP[24] PROGMEM =    "Use left/right arrows\0";
 const char TXT_KRZYSZTOF[24] PROGMEM = "Krzysztof\0";
 const char TXT_KRYSTIAN[24] PROGMEM = "Krystian\0";
 const char TXT_JANKOWSKI[24] PROGMEM = "Jankowski\0";
 
-char commandBuffer[CMD_MAX + 1];
+const byte hw = (WIDTH/2);
+const byte hh = (HEIGHT/2);
+
 char txtBuf[24];
 char txtBuf8[8];
-byte cmdIndex = 0;
-byte cmdIndexLast = 0;
 byte iconIndex = 0;
-byte iconsColumns = 3;
 byte wallpaper = 0;
+byte screensaver = 0;
 unsigned long lastActivityTime = 0;
-const unsigned long screensaverTimeout = 60000;
+  
+struct Star {
+  float x, y;
+  float speed;
+};
 
-
+static Star stars[NUM_STARS];
 static int freeRam();
 void bootimage();
-void prompt();
-void clear_cmd();
 void drawIcon(const byte pos, const byte id, const bool selected);
 void draw_desktop();
 void play_tune(const byte no);
 void drawWindow(const byte ww, const byte wh, const bool btn = true);
 void p1x();
-void processCommand(char *command);
+void processCommand();
 
 void setup()  {
   pinMode(A0, INPUT);
-  TV.begin(PAL,WIDTH,HEIGH);
+  TV.begin(PAL,WIDTH,HEIGHT);
   TV.select_font(font4x6);
   TV.clear_screen();
   keyboard.begin(KB_DATA, KB_SYNC);
-  memset(commandBuffer, 0, sizeof(commandBuffer));
+  randomSeed(analogRead(0));
   
   play_tune(TUNE_OS);
   bootimage();
-  
+
+  for(int i=0; i<NUM_STARS; i++){
+    resetStar(&stars[i]);
+  }
 
   drawDesktop();
+
+  
 }
 
 static int freeRam() {
@@ -159,24 +173,12 @@ void bootimage(){
   _delay_ms(500);
 }
 
-void prompt(){
-  TV.draw_rect(6+2,74+2,110,12,BLACK,BLACK);
-  TV.draw_rect(6,74,110,12,WHITE,BLACK);
-  TV.set_cursor(10,78);
-  TV.print("> ");
-}
-
-void clear_cmd(){
-  cmdIndex = 0;
-  memset(commandBuffer, 0, sizeof(commandBuffer));
-}
-
 void drawIcon(const byte pos, const byte id, const bool selected = false){
-  const byte ix = 8 + (pos%iconsColumns)*38;
-  const byte iy = 4 + (pos/iconsColumns)*22;
+  const byte ix = 3 + (pos%ICONS_COLUMNS)*36;
+  const byte iy = 4 + (pos/ICONS_COLUMNS)*22;
   TV.draw_rect(ix+2,iy+2,32,16,BLACK,BLACK);
-  if (selected) TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
-  else TV.draw_rect(ix,iy,32,16,BLACK,BLACK);
+  if (selected) TV.draw_rect(ix,iy,32,16,BLACK,BLACK);
+  else TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
   
   TV.set_cursor(ix+2,iy+2);
 
@@ -190,29 +192,22 @@ void drawIcon(const byte pos, const byte id, const bool selected = false){
     case 6: strcpy_P(txtBuf8,TXT_ICON6); TV.print(txtBuf8); break;
     case 7: strcpy_P(txtBuf8,TXT_ICON7); TV.print(txtBuf8); break;
   }
-
-
 }
 
 void drawWindow(const byte ww, const byte wh, const bool btn = true){
-  
-  const byte wx = 64 - ww/2;  
-  byte wy = 48 - wh/2;
-  if (wh>48) { wy = 4; }
+  const byte wx = hw - ww/2;  
+  byte wy = hh - wh/2;
+  if (wh>hh) { wy = 4; }
     
   TV.draw_rect(wx+4,wy+4,ww,wh,BLACK,BLACK);
   TV.draw_rect(wx,wy,ww,wh,WHITE,BLACK);
 
   if (btn){
-
- // one default button
-  TV.draw_rect(64-18+4,wy+wh+2+4,36,12,BLACK,BLACK);
-  TV.draw_rect(64-18,wy+wh+2,36,12,BLACK,WHITE);
-  TV.set_cursor(64-10,wy+wh+4+2);
-  strcpy_P(txtBuf8, TXT_BTNCLOSE);
-  TV.print(txtBuf8);
-
-  // decision buttons
+    TV.draw_rect(hw-18+4,wy+wh+2+4,36,12,BLACK,BLACK);
+    TV.draw_rect(hw-18,wy+wh+2,36,12,BLACK,WHITE);
+    TV.set_cursor(hw-10,wy+wh+4+2);
+    strcpy_P(txtBuf8, TXT_BTNCLOSE);
+    TV.print(txtBuf8);
   }
   TV.set_cursor(wx+4,wy+4);
   
@@ -257,8 +252,9 @@ void drawDesktop(){
   drawIcon(6,6,iconIndex == 6);
   drawIcon(7,7,iconIndex == 7);
 
-  clear_cmd();
-  prompt();
+  TV.set_cursor(3,HEIGHT-10);
+  strcpy_P(txtBuf,TXT_MONCIAABOUT);
+  TV.print(txtBuf);TV.print(VERSION);    
 }
 
 void play_tune(const byte no){
@@ -293,11 +289,8 @@ void play_tune(const byte no){
 
 void appLook(){  
   byte wallpaperSave = wallpaper;
-  drawWindow(100,40);
-  strcpy_P(txtBuf,TXT_LOOKTITLE);
-  TV.print(txtBuf);
-  TV.set_cursor(20,42);
-  strcpy_P(txtBuf,TXT_LOOKTITLE2);
+  drawWindow(100,60);
+  strcpy_P(txtBuf,TXT_LOOKTITLE_WP);
   TV.print(txtBuf);
      
   switch (wallpaper) {
@@ -306,9 +299,21 @@ void appLook(){
     case 2: strcpy_P(txtBuf,TXT_LOOK3); break;
     case 3: strcpy_P(txtBuf,TXT_LOOK4); break;
   }
-  TV.set_cursor(20,50);
+  TV.set_cursor(10,20);
   TV.print(txtBuf);
-  TV.set_cursor(20,60);
+  
+  TV.set_cursor(10,32);
+  strcpy_P(txtBuf,TXT_LOOKTITLE_SS);
+  TV.print(txtBuf);
+
+  switch (screensaver) {
+    case 0: strcpy_P(txtBuf,TXT_LOOK5); break;
+    case 1: strcpy_P(txtBuf,TXT_LOOK6); break;
+  }
+  TV.set_cursor(10,42);
+  TV.print(txtBuf);
+  
+  TV.set_cursor(10,54);
   strcpy_P(txtBuf,TXT_LOOKTIP);
   TV.print(txtBuf);
 
@@ -320,12 +325,14 @@ void appLook(){
         if (wallpaper > 0) wallpaper--;       
         play_tune(TUNE_KB);
       } else if (c == PS2_RIGHTARROW) {
-        if (wallpaper < WALLPAPERS) wallpaper++;
+        if (wallpaper < WALLPAPERS-1) wallpaper++;
         play_tune(TUNE_KB);
       } else if (c == PS2_UPARROW) {
-            
+        if (screensaver > 0) screensaver--;       
+        play_tune(TUNE_KB);
       } else if (c == PS2_DOWNARROW) {  
-       
+       if (screensaver < SCREENSAVERS-1) screensaver++;       
+        play_tune(TUNE_KB);
       } else if (c == PS2_ESC) {  
         wallpaper = wallpaperSave;
         play_tune(TUNE_NEG);
@@ -339,7 +346,7 @@ void appLook(){
         break;
       }
 
-      TV.set_cursor(20,50);
+      TV.set_cursor(10,20);
       switch (wallpaper) {
         case 0: strcpy_P(txtBuf,TXT_LOOK1); break;
         case 1: strcpy_P(txtBuf,TXT_LOOK2); break;
@@ -347,31 +354,45 @@ void appLook(){
         case 3: strcpy_P(txtBuf,TXT_LOOK4); break;
       }
       TV.print(txtBuf);
-      
+
+      TV.set_cursor(10,42);
+      switch (screensaver) {
+        case 0: strcpy_P(txtBuf,TXT_LOOK5); break;
+        case 1: strcpy_P(txtBuf,TXT_LOOK6); break;
+      }
+      TV.print(txtBuf);
       _delay_ms(5);
   }
 }
 
 void activateScreensaver(){
-
-  // sinusoid artist
-  byte lx=2 + rand()%126;
-  byte ly=2 + rand()%94;
-  byte x,y;  
-
   TV.fill(BLACK);
   
-  while (!keyboard.available()) {  
-    x = 64 + sin(millis()*0.0077f) * 24 + (sin(millis()*0.017)*40); //40
-    y = 48 + cos(millis()*0.0066f) * 24 + (sin(millis()*0.013)*24); //24
-    if ((millis()*10) % 50000 == 0) TV.fill(BLACK);
-    TV.draw_line(lx,ly,x,y,WHITE);
-    lx = x;
-    ly = y;
-  }
+  byte lx=2 + rand()%(WIDTH-2);
+  byte ly=2 + rand()%(HEIGHT-2);
+  byte x,y;  
 
-  // starfield
-  
+  while (!keyboard.available()) {  
+
+    if (screensaver == 0) { // sinusiod artist      
+      x = hw + sin(millis()*0.0077f) * 24 + (sin(millis()*0.017)*40); //40
+      y = hh + cos(millis()*0.0066f) * 24 + (sin(millis()*0.013)*24); //24
+      if ((millis()*10) % 50000 == 0) TV.fill(BLACK);
+      TV.draw_line(lx,ly,x,y,WHITE);
+      lx = x;
+      ly = y;    
+    }else if (screensaver == 1) { // starfield
+      for(int i = 0; i < NUM_STARS; i++) {
+        drawStar(&stars[i], BLACK);
+        updateStar(&stars[i]);
+      
+        if (stars[i].x > (WIDTH-4) || stars[i].x < 4 || (stars[i].y > HEIGHT-4) || stars[i].y < 4) {
+          resetStar(&stars[i]);
+        }
+        drawStar(&stars[i], WHITE);
+      }
+    }
+  }
 }
 
 void splash(){
@@ -380,11 +401,11 @@ void splash(){
 
 void dimScreen(){
   static int x,y;
-  for (y=0;y<96;y=y+4){
-    TV.draw_row(y,0,128,BLACK);
+  for (y=0;y<HEIGHT;y=y+4){
+    TV.draw_row(y,0,WIDTH,BLACK);
   }
-  for (x=0;x<128;x=x+8){
-    TV.draw_column(x,0,96,BLACK);
+  for (x=0;x<WIDTH;x=x+8){
+    TV.draw_column(x,0,HEIGHT,BLACK);
   }
 }
 
@@ -406,30 +427,25 @@ void p1x(){
   TV.tone(392,75);_delay_ms(10);
 }
 
-void processCommand(char *command){
-  byte appIndex = 200;
+
+void resetStar(Star *star) {
+  star->x = random(32, WIDTH-32);
+  star->y = random(32, HEIGHT-32);
+  star->speed = -random(1,6) / 2.0;
+}
+
+void updateStar(Star *star) {
+  star->x += ((WIDTH/2) - star->x) * star->speed / 100.0;
+  star->y += ((HEIGHT/2) - star->y) * star->speed / 100.0;
+}
+
+void drawStar(Star *star, byte c) {  
+  TV.set_pixel(star->x, star->y, c);  
+}
+
+void processCommand(){
   
-  if (strcmp(command, "\0") == 0 ) {
-    appIndex = iconIndex;   
-  }else if (strcmp(command, "free") == 0 ) {
-    appIndex = 0;
-  } else if (strcmp(command, "about") == 0) {  
-    appIndex = 1;
-  } else if (strcmp(command, "look") == 0) {
-    appIndex = 2;
-  } else if (strcmp(command, "p1x") == 0) {  
-    appIndex = 3;
-  } else if (strcmp(command, "edit") == 0) {  
-    appIndex = 4;
-  } else if (strcmp(command, "files") == 0) {  
-    appIndex = 5;
-  } else if (strcmp(command, "ss") == 0) {  
-    appIndex = 100;
-  } else if (strcmp(command, "moncia") == 0) {  
-    appIndex = 101;
-  }
-  
-  switch (appIndex) {
+  switch (iconIndex) {
     case 0: // FREE
       dimScreen();
       drawWindow(100,14);
@@ -502,25 +518,14 @@ void loop() {
   if (keyboard.available()) {    
     char c = keyboard.read();
     
-    if (c == PS2_ENTER || cmdIndex == CMD_MAX) {
-      commandBuffer[cmdIndex] = '\0';
-      processCommand(commandBuffer);
+    if (c == PS2_ENTER) {
+      processCommand();
       drawDesktop();
       
     } else if (c == PS2_ESC) {
       play_tune(TUNE_NEU);
       drawDesktop();
       
-    } else if (c == PS2_BACKSPACE) {
-      if (cmdIndex > 0) {
-        play_tune(TUNE_NEU);
-        cmdIndex--;
-        commandBuffer[cmdIndex] = '\0';
-        prompt();
-        TV.print(commandBuffer);
-      }else{
-        play_tune(TUNE_NEG);
-      }
     } else if (c == PS2_LEFTARROW) {
       if (iconIndex>0){ 
         iconIndex--;
@@ -534,28 +539,23 @@ void loop() {
         drawDesktop(); 
       }
     } else if (c == PS2_UPARROW) {
-      if (iconIndex-iconsColumns>=0){ 
-        iconIndex-=iconsColumns;
+      if (iconIndex-ICONS_COLUMNS>=0){ 
+        iconIndex-=ICONS_COLUMNS;
         play_tune(TUNE_KB);
         drawDesktop();
       }   
     } else if (c == PS2_DOWNARROW) {  
-      if (iconIndex+iconsColumns<ICONS){ 
-        iconIndex+=iconsColumns;
+      if (iconIndex+ICONS_COLUMNS<=ICONS){ 
+        iconIndex+=ICONS_COLUMNS;
         play_tune(TUNE_KB);
         drawDesktop();
       }   
-    }else{
-      play_tune(TUNE_KB);
-      commandBuffer[cmdIndex++] = c;
-      TV.print(c);
     }
 
     lastActivityTime = millis();
-    _delay_ms(5);
   }
 
-  if (millis() - lastActivityTime > screensaverTimeout) {
+  if (millis() - lastActivityTime > SCREENSAVER_TIMEOUT) {
       activateScreensaver();
       drawDesktop();
   }
