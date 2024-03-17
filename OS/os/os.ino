@@ -42,6 +42,10 @@ Quick log:
 - [done] screensaver setting in look app
 - [done] removed command prompt
 - [release] alpha 9 / 188b free
+- [done] procedural corners
+- [done] dimmer dim background
+- 
+- [release] alpha 10 / 302b free
 
 ToDo:
 - SD card read/write
@@ -73,7 +77,7 @@ TVout TV;
 #define KB_DATA 8
 #define KB_SYNC 3
 #define WIDTH 112
-#define HEIGHT 96
+#define HEIGHT 88
 #define TUNE_OS 0
 #define TUNE_KB 1
 #define TUNE_POS 2
@@ -175,7 +179,7 @@ void bootimage(){
 
 void drawIcon(const byte pos, const byte id, const bool selected = false){
   const byte ix = 3 + (pos%ICONS_COLUMNS)*36;
-  const byte iy = 4 + (pos/ICONS_COLUMNS)*22;
+  const byte iy = 12 + (pos/ICONS_COLUMNS)*22;
   TV.draw_rect(ix+2,iy+2,32,16,BLACK,BLACK);
   if (selected) TV.draw_rect(ix,iy,32,16,BLACK,BLACK);
   else TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
@@ -195,7 +199,8 @@ void drawIcon(const byte pos, const byte id, const bool selected = false){
 }
 
 void drawWindow(const byte ww, const byte wh, const bool btn = true){
-  const byte wx = hw - ww/2;  
+  const byte wx = hw - ww/2;
+  const byte btnShift = 6;
   byte wy = hh - wh/2;
   if (wh>hh) { wy = 4; }
     
@@ -203,34 +208,54 @@ void drawWindow(const byte ww, const byte wh, const bool btn = true){
   TV.draw_rect(wx,wy,ww,wh,WHITE,BLACK);
 
   if (btn){
-    TV.draw_rect(hw-18+4,wy+wh+2+4,36,12,BLACK,BLACK);
-    TV.draw_rect(hw-18,wy+wh+2,36,12,BLACK,WHITE);
-    TV.set_cursor(hw-10,wy+wh+4+2);
+    TV.draw_rect(hw-18+4,wy+wh+btnShift+4,36,12,BLACK,BLACK);
+    TV.draw_rect(hw-18,wy+wh+btnShift,36,12,BLACK,WHITE);
+    TV.set_cursor(hw-10,wy+wh+btnShift+4);
     strcpy_P(txtBuf8, TXT_BTNCLOSE);
     TV.print(txtBuf8);
   }
-  TV.set_cursor(wx+4,wy+4);
   
+  TV.set_cursor(wx+4,wy+4);
 }
 
 void drawDesktop(){
+  TV.fill(WHITE);
+
+  // corners
+  TV.draw_column(0,0,6,BLACK);
+  TV.draw_column(1,0,3,BLACK);
+  TV.draw_row(0,0,6,BLACK);
+  TV.draw_row(1,0,3,BLACK);
+    
+  TV.draw_column(WIDTH-1,0,6,BLACK);
+  TV.draw_column(WIDTH-2,0,3,BLACK);
+  TV.draw_row(0,WIDTH-6,WIDTH,BLACK);
+  TV.draw_row(1,WIDTH-3,WIDTH,BLACK);
   
+  TV.draw_column(0,HEIGHT-6,HEIGHT,BLACK);
+  TV.draw_column(1,HEIGHT-3,HEIGHT,BLACK);
+  TV.draw_row(HEIGHT-2,0,3,BLACK);
+  TV.draw_row(HEIGHT-1,0,6,BLACK);
+  
+  TV.draw_column(WIDTH-1,HEIGHT-6,HEIGHT,BLACK);
+  TV.draw_column(WIDTH-2,HEIGHT-3,HEIGHT,BLACK);
+  TV.draw_row(HEIGHT-1,WIDTH-6,WIDTH,BLACK);
+  TV.draw_row(HEIGHT-2,WIDTH-3,WIDTH,BLACK);
+  
+  // wallpaper
   switch(wallpaper){
-    case 0: TV.bitmap(0,0,img_wallpaper0); break;
+    case 0: break;
     case 1:
-    TV.bitmap(0,0,img_wallpaper0);
-    for (int y=2;y<95;y=y+6){
-      TV.draw_row(y,2,126,BLACK);
+    for (int y=4;y<HEIGHT-4;y=y+6){
+      TV.draw_row(y,2,WIDTH-2,BLACK);
     }
     break;
     case 2:
-    TV.bitmap(0,0,img_wallpaper0);
-    for (int x=2;x<127;x=x+6){
-      TV.draw_column(x,2,94,BLACK);
+    for (int x=4;x<WIDTH-4;x=x+6){
+      TV.draw_column(x,2,HEIGHT-2,BLACK);
     }
     break;
     case 3:
-    TV.bitmap(0,0,img_wallpaper0);
     byte lx=2 + rand()%126;
     byte ly=2 + rand()%94;
     for (int i=0;i<14;i++){
@@ -252,7 +277,7 @@ void drawDesktop(){
   drawIcon(6,6,iconIndex == 6);
   drawIcon(7,7,iconIndex == 7);
 
-  TV.set_cursor(3,HEIGHT-10);
+  TV.set_cursor(20,2);
   strcpy_P(txtBuf,TXT_MONCIAABOUT);
   TV.print(txtBuf);TV.print(VERSION);    
 }
@@ -289,7 +314,7 @@ void play_tune(const byte no){
 
 void appLook(){  
   byte wallpaperSave = wallpaper;
-  drawWindow(100,60);
+  drawWindow(88,60);
   strcpy_P(txtBuf,TXT_LOOKTITLE_WP);
   TV.print(txtBuf);
      
@@ -299,10 +324,10 @@ void appLook(){
     case 2: strcpy_P(txtBuf,TXT_LOOK3); break;
     case 3: strcpy_P(txtBuf,TXT_LOOK4); break;
   }
-  TV.set_cursor(10,20);
+  TV.set_cursor(14,20);
   TV.print(txtBuf);
   
-  TV.set_cursor(10,32);
+  TV.set_cursor(14,32);
   strcpy_P(txtBuf,TXT_LOOKTITLE_SS);
   TV.print(txtBuf);
 
@@ -310,10 +335,10 @@ void appLook(){
     case 0: strcpy_P(txtBuf,TXT_LOOK5); break;
     case 1: strcpy_P(txtBuf,TXT_LOOK6); break;
   }
-  TV.set_cursor(10,42);
+  TV.set_cursor(14,42);
   TV.print(txtBuf);
   
-  TV.set_cursor(10,54);
+  TV.set_cursor(14,54);
   strcpy_P(txtBuf,TXT_LOOKTIP);
   TV.print(txtBuf);
 
@@ -346,7 +371,7 @@ void appLook(){
         break;
       }
 
-      TV.set_cursor(10,20);
+      TV.set_cursor(14,20);
       switch (wallpaper) {
         case 0: strcpy_P(txtBuf,TXT_LOOK1); break;
         case 1: strcpy_P(txtBuf,TXT_LOOK2); break;
@@ -355,13 +380,12 @@ void appLook(){
       }
       TV.print(txtBuf);
 
-      TV.set_cursor(10,42);
+      TV.set_cursor(14,42);
       switch (screensaver) {
         case 0: strcpy_P(txtBuf,TXT_LOOK5); break;
         case 1: strcpy_P(txtBuf,TXT_LOOK6); break;
       }
       TV.print(txtBuf);
-      _delay_ms(5);
   }
 }
 
@@ -401,10 +425,10 @@ void splash(){
 
 void dimScreen(){
   static int x,y;
-  for (y=0;y<HEIGHT;y=y+4){
+  for (y=0;y<HEIGHT;y=y+2){
     TV.draw_row(y,0,WIDTH,BLACK);
   }
-  for (x=0;x<WIDTH;x=x+8){
+  for (x=0;x<WIDTH;x=x+2){
     TV.draw_column(x,0,HEIGHT,BLACK);
   }
 }
@@ -448,7 +472,7 @@ void processCommand(){
   switch (iconIndex) {
     case 0: // FREE
       dimScreen();
-      drawWindow(100,14);
+      drawWindow(88,14);
       strcpy_P(txtBuf,TXT_FREERAM);
       TV.print(txtBuf);
       TV.print(freeRam());
@@ -459,12 +483,12 @@ void processCommand(){
       
      case 1: // ABOUT
       dimScreen();
-      drawWindow(100,50);
-      TV.set_cursor(35,8);
+      drawWindow(88,50);
+      TV.set_cursor(20,8);
       strcpy_P(txtBuf,TXT_MONCIAABOUT);
       TV.print(txtBuf);TV.print(VERSION);    
-      TV.bitmap(64-8,20,img_p1x);
-      TV.set_cursor(40,47);
+      TV.bitmap(hw-8,20,img_p1x);
+      TV.set_cursor(35,47);
       strcpy_P(txtBuf,TXT_CC);
       TV.print(txtBuf);
       play_tune(TUNE_OS);   
@@ -482,7 +506,7 @@ void processCommand(){
      case 4:
      case 5:
         dimScreen();
-        drawWindow(100,14);
+        drawWindow(88,14);
         strcpy_P(txtBuf,TXT_DEBUG);
         TV.print(txtBuf);
         play_tune(TUNE_NEU);
@@ -502,7 +526,7 @@ void processCommand(){
       
      case 200: // UNKNOWN
         dimScreen();
-        drawWindow(100,14);
+        drawWindow(88,14);
         strcpy_P(txtBuf,TXT_UNKNOWN);
         TV.print(txtBuf);
         play_tune(TUNE_NEG);
