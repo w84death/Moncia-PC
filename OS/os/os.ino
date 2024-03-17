@@ -61,16 +61,21 @@ Quick log:
 - [done] renaming function for consistent
 - [done] updated about (more line NeoFetch)
 - [done] refactor applications logic
-- [release] alpha 10 / 259 bytes free
+- [release] alpha 11 / 259 bytes free
 - -----------------------------------------
 - [done] reduced to 16 stars - 355b free
-- Sketch uses 19386 bytes (60%)
+- [done] EEPROM storage
+- [done] base text editor (4 banks of 250 characters)
+-
+- cursors for editing
+- changing banks
+- 
 - -----------------------------------------
 
 
 ToDo:
 - remove ICONS, calculate via activated APPS.
-- EEPROM storage
+
 - text editor prog
 - piano prog
 - paint prog
@@ -112,7 +117,7 @@ TVout TV;
 #define ICONS_COLUMNS 3
 #define SCREENSAVER_TIMEOUT 60000
 #define NUM_STARS 16
-#define EDIT_BUFFER 255
+#define EDIT_BUFFER 250
 #define EDIT_BANKS 4
 
 const byte HALF_WIDTH PROGMEM = (WIDTH/2);
@@ -593,6 +598,19 @@ void editApp(){
       break;
     } else if (c == PS2_F4) {
       editBank = 3;
+      break;
+    } else if (c == PS2_PAGEDOWN) {
+      if (editBank > 0) {
+        editBank--;
+      }
+      break;
+    } else if (c == PS2_PAGEUP) {
+      if (editBank < EDIT_BANKS-1) {
+        editBank++;
+      }
+      break;
+    } else if (c == PS2_DELETE) {
+      clearEEPROM();
       break;
     }else{
       if (editIndex<EDIT_BUFFER) {
