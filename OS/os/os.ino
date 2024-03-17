@@ -1,3 +1,5 @@
+
+
 /*
 ------------------------------------
 MonciaOS
@@ -61,15 +63,19 @@ Quick log:
 - [done] refactor applications logic
 - [release] alpha 10 / 259 bytes free
 - -----------------------------------------
+- [done] reduced to 16 stars - 355b free
+- Sketch uses 19386 bytes (60%)
+- -----------------------------------------
+
 
 ToDo:
-
-- SD card read/write
+- remove ICONS, calculate via activated APPS.
+- EEPROM storage
 - text editor prog
 - piano prog
 - paint prog
 - amiga mouse input
-
+- SD card read/write
 */
 
 #include <avr/pgmspace.h>
@@ -77,6 +83,7 @@ ToDo:
 #include <math.h>
 #include <PS2Keyboard.h>
 #include <TVout.h>
+#include <EEPROM.h>
 
 #include "fonts.h"
 #include "bitmaps.h"
@@ -85,7 +92,7 @@ ToDo:
 PS2Keyboard keyboard;
 TVout TV;
 
-#define VERSION 11
+#define VERSION 12
 
 #define MAX_RAM 2048
 #define KB_DATA 8
@@ -97,19 +104,23 @@ TVout TV;
 #define TUNE_POS 2
 #define TUNE_NEG 3
 #define TUNE_NEU 4
-#define NUM_STARS 24
-#define SCREENSAVER_TIMEOUT 60000
+
 #define WALLPAPERS 4
+#define SCREENSAVERS 2
 #define APPS 9
 #define ICONS 7
 #define ICONS_COLUMNS 3
-#define SCREENSAVERS 2
+#define SCREENSAVER_TIMEOUT 60000
+#define NUM_STARS 16
+#define EDIT_BUFFER 255
+#define EDIT_BANKS 4
 
 const byte HALF_WIDTH PROGMEM = (WIDTH/2);
 const byte HALF_HEIGHT PROGMEM = (HEIGHT/2);
 
 char txtBuf[24];
 char txtBuf8[8];
+int editBank = 0;
 
 struct App {
   byte id;
@@ -119,7 +130,7 @@ struct App {
 };
 static App apps[APPS];
 
-byte iconIndex = 0;
+byte appIndex = 0;
 byte wallpaper = 0;
 byte screensaver = 0;
 unsigned long lastActivityTime = 0;
@@ -167,7 +178,7 @@ void setup()  {
   addApp(1, TXT_APP1, 1, false);
   addApp(2, TXT_APP2, 2, true);
   addApp(3, TXT_APP3, 3, false);
-  addApp(4, TXT_APP4, 4, false);
+  addApp(4, TXT_APP4, 4, true);
   addApp(5, TXT_APP5, 5, false);
   addApp(6, TXT_APP6, 6, false);
   addApp(7, TXT_APP7, 7, false);
@@ -304,7 +315,7 @@ void drawDesktop(){
   }
 
   for (int i = 0; i < APPS; i++) {
-    if(apps[i].id<255) drawIcon(&apps[i],iconIndex == i);
+    if(apps[i].id<255) drawIcon(&apps[i],appIndex == i);
   }
 
   TV.set_cursor(20,2);
@@ -344,7 +355,7 @@ void play_tune(const byte no){
 
 void appLook(){  
   byte wallpaperSave = wallpaper;
-  drawWindow(88,60);
+  const Vec2 pos = drawWindow(88,60);
   strcpy_P(txtBuf,TXT_LOOKTITLE_WP);
   TV.print(txtBuf);
      
@@ -354,10 +365,10 @@ void appLook(){
     case 2: strcpy_P(txtBuf,TXT_LOOK3); break;
     case 3: strcpy_P(txtBuf,TXT_LOOK4); break;
   }
-  TV.set_cursor(14,20);
+  TV.set_cursor(pos.x,pos.y+8);
   TV.print(txtBuf);
   
-  TV.set_cursor(14,32);
+  TV.set_cursor(pos.x,pos.y+20);
   strcpy_P(txtBuf,TXT_LOOKTITLE_SS);
   TV.print(txtBuf);
 
@@ -365,10 +376,10 @@ void appLook(){
     case 0: strcpy_P(txtBuf,TXT_LOOK5); break;
     case 1: strcpy_P(txtBuf,TXT_LOOK6); break;
   }
-  TV.set_cursor(14,42);
+  TV.set_cursor(pos.x,pos.y+28);
   TV.print(txtBuf);
   
-  TV.set_cursor(14,54);
+  TV.set_cursor(pos.x,pos.y+44);
   strcpy_P(txtBuf,TXT_LOOKTIP);
   TV.print(txtBuf);
 
@@ -397,13 +408,14 @@ void appLook(){
         break;
       }
 
-      TV.set_cursor(14,20);
+      
       switch (wallpaper) {
         case 0: strcpy_P(txtBuf,TXT_LOOK1); break;
         case 1: strcpy_P(txtBuf,TXT_LOOK2); break;
         case 2: strcpy_P(txtBuf,TXT_LOOK3); break;
         case 3: strcpy_P(txtBuf,TXT_LOOK4); break;
       }
+      TV.set_cursor(pos.x,pos.y+8);
       TV.print(txtBuf);
 
       TV.set_cursor(14,42);
@@ -411,6 +423,7 @@ void appLook(){
         case 0: strcpy_P(txtBuf,TXT_LOOK5); break;
         case 1: strcpy_P(txtBuf,TXT_LOOK6); break;
       }
+      TV.set_cursor(pos.x,pos.y+28);
       TV.print(txtBuf);
   }
 }
@@ -421,21 +434,21 @@ void activateScreensaver(){
   byte lx=2 + rand()%(WIDTH-2);
   byte ly=2 + rand()%(HEIGHT-2);
   byte x,y;  
+  unsigned int t = 0;
 
   while (!keyboard.available()) {  
-
+    t++;
     if (screensaver == 0) { // sinusiod artist      
-      x = HALF_WIDTH + sin(millis()*0.0077f) * 24 + (sin(millis()*0.017)*40); //40
-      y = HALF_HEIGHT + cos(millis()*0.0066f) * 24 + (sin(millis()*0.013)*24); //24
-      if ((millis()*10) % 50000 == 0) TV.fill(BLACK);
+      x = HALF_WIDTH + sin(t*0.0077f) * 24 + (sin(t*0.017)*20); //40
+      y = HALF_HEIGHT + cos(t*0.0066f) * 24 + (sin(t*0.013)*12); //24
+      if (t % 1500 == 0) TV.fill(BLACK);
       TV.draw_line(lx,ly,x,y,WHITE);
       lx = x;
       ly = y;    
     }else if (screensaver == 1) { // starfield
       for(int i = 0; i < NUM_STARS; i++) {
         drawStar(&stars[i], BLACK);
-        updateStar(&stars[i]);
-      
+        updateStar(&stars[i]);     
         if (stars[i].x > (WIDTH-4) || stars[i].x < 4 || (stars[i].y > HEIGHT-4) || stars[i].y < 4) {
           resetStar(&stars[i]);
         }
@@ -515,9 +528,87 @@ void aboutApp(){
   play_tune(TUNE_OS);   
 }
 
+void clearEEPROM(){
+  const int startBuf = EDIT_BUFFER*editBank;
+  const int endBuf = EDIT_BUFFER + EDIT_BUFFER*editBank;
+  for (int i =  startBuf; i < endBuf; i++) {
+    EEPROM.write(i, 0);
+  } 
+  EEPROM.write(endBuf, '\0');
+}
+
+void editApp(){  
+  char editBuf[EDIT_BUFFER] PROGMEM;
+  int editIndex = 0;
+  int lastIndex = 0;
+  
+  drawBackground(WHITE,BLACK);
+  TV.set_cursor(HALF_WIDTH-8,1);
+  strcpy_P(txtBuf,TXT_APP4);
+  TV.print(txtBuf);
+
+  TV.set_cursor(HALF_WIDTH+12,1);
+  strcpy_P(txtBuf,TXT_BANK);
+  TV.print(txtBuf);
+  TV.print(editBank+1);
+  
+  char readChar = " ";
+  TV.set_cursor(0,8);
+  
+  while (readChar != '\0' and editIndex<EDIT_BUFFER){
+    readChar = EEPROM.read(editIndex + EDIT_BUFFER*editBank);
+    editBuf[editIndex++] = readChar;
+    TV.print(readChar);
+  }
+  
+  editIndex--;
+  lastIndex = editIndex;
+   
+  while (!keyboard.available()) {}
+  while (char c = keyboard.read()) {     
+    if (c == PS2_ENTER) {      
+      for (int i = lastIndex; i < editIndex; i++) {
+        EEPROM.write(i + EDIT_BUFFER*editBank, editBuf[i]);
+      }
+      EEPROM.write(editIndex + EDIT_BUFFER*editBank, '\0');    
+      break;
+    } else if (c == PS2_ESC) {
+      break;      
+    } else if (c == PS2_LEFTARROW) {            
+      break;
+    } else if (c == PS2_RIGHTARROW) {      
+      break;
+    } else if (c == PS2_UPARROW) {  
+      break;
+    } else if (c == PS2_DOWNARROW) {      
+      break;
+    } else if (c == PS2_F1) {
+      editBank = 0;
+      break;
+    } else if (c == PS2_F2) {
+      editBank = 1;
+      break;
+    } else if (c == PS2_F3) {
+      editBank = 2;
+      break;
+    } else if (c == PS2_F4) {
+      editBank = 3;
+      break;
+    }else{
+      if (editIndex<EDIT_BUFFER) {
+        editBuf[editIndex++] = c;      
+        TV.print(c);
+      }
+    }    
+    while (!keyboard.available()) {}
+  }  
+
+  free(editBuf);
+}
+
 void processCommand(){
   
-  switch (iconIndex) {
+  switch (appIndex) {
     case 0: // FREE
       dimScreen();
       drawWindow(88,14);
@@ -544,12 +635,17 @@ void processCommand(){
       break;  
       
      case 4:
-     case 5:
+      editApp();
+      break;
+      
+     case 5:        
         dimScreen();
-        drawWindow(88,14);
-        strcpy_P(txtBuf,TXT_DEBUG);
+        drawWindow(88,14);                
+        strcpy_P(txtBuf,TXT_DONE);
         TV.print(txtBuf);
         play_tune(TUNE_NEU);
+        clearEEPROM();
+        play_tune(TUNE_POS);
       break;
          
      case 7:
@@ -573,7 +669,7 @@ void processCommand(){
       break;
   }
 
-  if(!apps[iconIndex].interactive){
+  if(!apps[appIndex].interactive){
     while (!keyboard.available()) {}
     keyboard.read();
   }
@@ -593,26 +689,26 @@ void loop() {
       drawDesktop();
       
     } else if (c == PS2_LEFTARROW) {
-      if (iconIndex>0){ 
-        iconIndex--;
+      if (appIndex>0){ 
+        appIndex--;
         play_tune(TUNE_KB);
         drawDesktop();
       }
     } else if (c == PS2_RIGHTARROW) {
-      if (iconIndex<ICONS) { 
-        iconIndex++; 
+      if (appIndex<ICONS) { 
+        appIndex++; 
         play_tune(TUNE_KB);
         drawDesktop(); 
       }
     } else if (c == PS2_UPARROW) {
-      if (iconIndex-ICONS_COLUMNS>=0){ 
-        iconIndex-=ICONS_COLUMNS;
+      if (appIndex-ICONS_COLUMNS>=0){ 
+        appIndex-=ICONS_COLUMNS;
         play_tune(TUNE_KB);
         drawDesktop();
       }   
     } else if (c == PS2_DOWNARROW) {  
-      if (iconIndex+ICONS_COLUMNS<=ICONS){ 
-        iconIndex+=ICONS_COLUMNS;
+      if (appIndex+ICONS_COLUMNS<=ICONS){ 
+        appIndex+=ICONS_COLUMNS;
         play_tune(TUNE_KB);
         drawDesktop();
       }   
