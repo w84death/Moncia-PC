@@ -1,7 +1,7 @@
 /*
 ------------------------------------
 MonciaOS
-Version 0.06 - 2024-03-09
+Version alpha 11 - 2024-03-17
 
 CC0 2024 P1X
 Made by Krzysztof Krystian Jankowski
@@ -44,7 +44,8 @@ Quick log:
 - [release] alpha 9 / 188b free
 - [done] procedural corners
 - [done] dimmer dim background
-- 
+- [done] resolution changed to 112x88
+- [done] all code resolution independent
 - [release] alpha 10 / 302b free
 
 ToDo:
@@ -65,7 +66,6 @@ ToDo:
 #include <TVoutfonts/font4x6.h>
 
 #include "title.h"
-#include "wallpaper0.h"
 #include "p1x.h"
 #include "kj.h"
 
