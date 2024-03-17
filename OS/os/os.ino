@@ -57,11 +57,13 @@ Quick log:
 - [done] combined fonts into one header file
 - [done] combined strings into one header file
 - [done] renaming function for consistent
-- ... WORK IN PROGRESS ...
+- [done] updated about (more line NeoFetch)
+- [done] refactor applications logic
+- [release] alpha 10 / 259 bytes free
 - -----------------------------------------
 
 ToDo:
-- refactor applications logic
+
 - SD card read/write
 - text editor prog
 - piano prog
@@ -85,6 +87,7 @@ TVout TV;
 
 #define VERSION 11
 
+#define MAX_RAM 2048
 #define KB_DATA 8
 #define KB_SYNC 3
 #define WIDTH 112
@@ -97,15 +100,25 @@ TVout TV;
 #define NUM_STARS 24
 #define SCREENSAVER_TIMEOUT 60000
 #define WALLPAPERS 4
+#define APPS 9
 #define ICONS 7
 #define ICONS_COLUMNS 3
 #define SCREENSAVERS 2
 
-const byte hw PROGMEM = (WIDTH/2);
-const byte hh PROGMEM = (HEIGHT/2);
+const byte HALF_WIDTH PROGMEM = (WIDTH/2);
+const byte HALF_HEIGHT PROGMEM = (HEIGHT/2);
 
 char txtBuf[24];
 char txtBuf8[8];
+
+struct App {
+  byte id;
+  const char* name;
+  byte iconPos;
+  bool interactive;
+};
+static App apps[APPS];
+
 byte iconIndex = 0;
 byte wallpaper = 0;
 byte screensaver = 0;
@@ -117,14 +130,19 @@ struct Star {
 };
 static Star stars[NUM_STARS];
 
+struct Vec2 {
+  int x,y;
+};
+
 static int freeRam();
 void drawIcon(const byte pos, const byte id, const bool selected);
 void drawDesktop();
 void drawSplashScreen();
 void play_tune(const byte no);
-void drawWindow(const byte ww, const byte wh, const bool btn = true);
+Vec2 drawWindow(const byte ww, const byte wh, const bool btn = true);
 void drawP1XDemo();
 void processCommand();
+void addApp(byte appId, const char* name, byte iconPos, bool interactive);
 
 void setup()  {
   pinMode(A0, INPUT);
@@ -140,8 +158,29 @@ void setup()  {
   for(int i=0; i<NUM_STARS; i++){
     resetStar(&stars[i]);
   }
+  
+  for (int i = 0; i < APPS; i++) {
+    apps[i].id = 255;
+  }
+  
+  addApp(0, TXT_APP0, 0, false); 
+  addApp(1, TXT_APP1, 1, false);
+  addApp(2, TXT_APP2, 2, true);
+  addApp(3, TXT_APP3, 3, false);
+  addApp(4, TXT_APP4, 4, false);
+  addApp(5, TXT_APP5, 5, false);
+  addApp(6, TXT_APP6, 6, false);
+  addApp(7, TXT_APP7, 7, false);
 
   drawDesktop();
+}
+
+
+void addApp(byte appId, const char* name, byte iconPos, bool interactive) {
+  apps[appId].id = appId;
+  apps[appId].name = name;
+  apps[appId].iconPos = iconPos;
+  apps[appId].interactive = interactive;
 }
 
 static int freeRam() {
@@ -150,108 +189,126 @@ static int freeRam() {
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }
 
-void drawIcon(const byte pos, const byte id, const bool selected = false){
-  const byte ix = 3 + (pos%ICONS_COLUMNS)*36;
-  const byte iy = 12 + (pos/ICONS_COLUMNS)*22;
+void drawIcon(App *app, const bool selected = false){
+  const byte ix = 3 + (app->iconPos%ICONS_COLUMNS)*36;
+  const byte iy = 20 + (app->iconPos/ICONS_COLUMNS)*22;
   TV.draw_rect(ix+2,iy+2,32,16,BLACK,BLACK);
   if (selected) TV.draw_rect(ix,iy,32,16,BLACK,BLACK);
   else TV.draw_rect(ix,iy,32,16,BLACK,WHITE);
   
   TV.set_cursor(ix+2,iy+2);
-
-  switch (id) {
-    case 0: strcpy_P(txtBuf8,TXT_ICON0); TV.print(txtBuf8); break;
-    case 1: strcpy_P(txtBuf8,TXT_ICON1); TV.print(txtBuf8); break;
-    case 2: strcpy_P(txtBuf8,TXT_ICON2); TV.print(txtBuf8); break;
-    case 3: strcpy_P(txtBuf8,TXT_ICON3); TV.print(txtBuf8); break;
-    case 4: strcpy_P(txtBuf8,TXT_ICON4); TV.print(txtBuf8); break;
-    case 5: strcpy_P(txtBuf8,TXT_ICON5); TV.print(txtBuf8); break;
-    case 6: strcpy_P(txtBuf8,TXT_ICON6); TV.print(txtBuf8); break;
-    case 7: strcpy_P(txtBuf8,TXT_ICON7); TV.print(txtBuf8); break;
-  }
+  strcpy_P(txtBuf8,app->name);
+  TV.print(txtBuf8);
 }
 
-void drawWindow(const byte ww, const byte wh, const bool btn = true){
-  const byte wx = hw - ww/2;
-  const byte btnShift = 6;
-  byte wy = hh - wh/2;
-  if (wh>hh) { wy = 4; }
+Vec2 drawWindow(const byte ww, const byte wh, const bool btn = true){
+  Vec2 v2;
+  const byte wx = HALF_WIDTH - ww/2;
+  const byte btnShift = 0;
+  byte wy = HALF_HEIGHT - wh/2;
+  if (wh>HALF_HEIGHT) { wy = 4; }
     
   TV.draw_rect(wx+4,wy+4,ww,wh,BLACK,BLACK);
   TV.draw_rect(wx,wy,ww,wh,WHITE,BLACK);
 
   if (btn){
-    TV.draw_rect(hw-18+4,wy+wh+btnShift+4,36,12,BLACK,BLACK);
-    TV.draw_rect(hw-18,wy+wh+btnShift,36,12,BLACK,WHITE);
-    TV.set_cursor(hw-10,wy+wh+btnShift+4);
+    TV.draw_rect(HALF_WIDTH-18+4,wy+wh+btnShift+4,36,12,BLACK,BLACK);
+    TV.draw_rect(HALF_WIDTH-18,wy+wh+btnShift,36,12,BLACK,WHITE);
+    TV.set_cursor(HALF_WIDTH-10,wy+wh+btnShift+4);
     strcpy_P(txtBuf8, TXT_BTNCLOSE);
     TV.print(txtBuf8);
   }
+  v2.x=wx+4;
+  v2.y=wy+4;
+  TV.set_cursor(v2.x, v2.y);
   
-  TV.set_cursor(wx+4,wy+4);
+  return v2;
+}
+
+void drawBackground(byte bgColor = WHITE, byte cornerColor = BLACK, bool gradient = false){
+  
+  TV.fill(bgColor);
+
+  if(gradient){
+    for (byte i=0; i<WIDTH; i+=8){
+      TV.bitmap(i,0,img_gradient); // 8
+    }
+  }
+
+  TV.draw_column(0,0,6,cornerColor);
+  TV.draw_column(1,0,3,cornerColor);
+  TV.draw_row(0,0,6,cornerColor);
+  TV.draw_row(1,0,3,cornerColor);
+    
+  TV.draw_column(WIDTH-1,0,6,cornerColor);
+  TV.draw_column(WIDTH-2,0,3,cornerColor);
+  TV.draw_row(0,WIDTH-6,WIDTH,cornerColor);
+  TV.draw_row(1,WIDTH-3,WIDTH,cornerColor);
+  
+  TV.draw_column(0,HEIGHT-6,HEIGHT,cornerColor);
+  TV.draw_column(1,HEIGHT-3,HEIGHT,cornerColor);
+  TV.draw_row(HEIGHT-2,0,3,cornerColor);
+  TV.draw_row(HEIGHT-1,0,6,cornerColor);
+  
+  TV.draw_column(WIDTH-1,HEIGHT-6,HEIGHT,cornerColor);
+  TV.draw_column(WIDTH-2,HEIGHT-3,HEIGHT,cornerColor);
+  TV.draw_row(HEIGHT-1,WIDTH-6,WIDTH,cornerColor);
+  TV.draw_row(HEIGHT-2,WIDTH-3,WIDTH,cornerColor);
+}
+
+
+void drawSplashScreen(){
+  drawBackground(WHITE,BLACK,true);
+  TV.draw_rect(HALF_WIDTH-26,HALF_HEIGHT-15,60,40, BLACK, BLACK);
+  TV.draw_rect(HALF_WIDTH-30,HALF_HEIGHT-19,60,40, BLACK, WHITE);
+  TV.bitmap(HALF_WIDTH-28,HALF_HEIGHT-17,img_chip); // 56x37 -> 28x17
+  TV.bitmap(HALF_WIDTH-40,HEIGHT-14,img_logo); // 80x11 -> 40x5
+  _delay_ms(500);
+}
+
+void dimScreen(){
+  static byte x,y;
+  for (y=0;y<HEIGHT;y=y+2){
+    TV.draw_row(y,0,WIDTH,BLACK);
+  }
+  for (x=0;x<WIDTH;x=x+2){
+    TV.draw_column(x,0,HEIGHT,BLACK);
+  }
 }
 
 void drawDesktop(){
-  TV.fill(WHITE);
-
-  // corners
-  TV.draw_column(0,0,6,BLACK);
-  TV.draw_column(1,0,3,BLACK);
-  TV.draw_row(0,0,6,BLACK);
-  TV.draw_row(1,0,3,BLACK);
-    
-  TV.draw_column(WIDTH-1,0,6,BLACK);
-  TV.draw_column(WIDTH-2,0,3,BLACK);
-  TV.draw_row(0,WIDTH-6,WIDTH,BLACK);
-  TV.draw_row(1,WIDTH-3,WIDTH,BLACK);
-  
-  TV.draw_column(0,HEIGHT-6,HEIGHT,BLACK);
-  TV.draw_column(1,HEIGHT-3,HEIGHT,BLACK);
-  TV.draw_row(HEIGHT-2,0,3,BLACK);
-  TV.draw_row(HEIGHT-1,0,6,BLACK);
-  
-  TV.draw_column(WIDTH-1,HEIGHT-6,HEIGHT,BLACK);
-  TV.draw_column(WIDTH-2,HEIGHT-3,HEIGHT,BLACK);
-  TV.draw_row(HEIGHT-1,WIDTH-6,WIDTH,BLACK);
-  TV.draw_row(HEIGHT-2,WIDTH-3,WIDTH,BLACK);
-  
-  // wallpaper
+  drawBackground();
   switch(wallpaper){
     case 0: break;
     case 1:
-    for (int y=4;y<HEIGHT-4;y=y+6){
-      TV.draw_row(y,2,WIDTH-2,BLACK);
-    }
+      for (int y=4;y<HEIGHT-4;y=y+6){
+        TV.draw_row(y,2,WIDTH-2,BLACK);
+      }
     break;
     case 2:
-    for (int x=4;x<WIDTH-4;x=x+6){
-      TV.draw_column(x,2,HEIGHT-2,BLACK);
-    }
+      for (int x=4;x<WIDTH-4;x=x+6){
+        TV.draw_column(x,2,HEIGHT-2,BLACK);
+      }
     break;
     case 3:
-    byte lx=2 + rand()%126;
-    byte ly=2 + rand()%94;
-    for (int i=0;i<14;i++){
-      const byte x=2+rand()%126;
-      const byte y=2+rand()%94;
-      TV.draw_line(lx,ly,x,y,BLACK);
-      lx = x;
-      ly = y;
-    }
+      byte lx=2 + rand()%126;
+      byte ly=2 + rand()%94;
+      for (int i=0;i<14;i++){
+        const byte x=2+rand()%126;
+        const byte y=2+rand()%94;
+        TV.draw_line(lx,ly,x,y,BLACK);
+        lx = x;
+        ly = y;
+      }
     break;
   }
-  
-  drawIcon(0,0,iconIndex == 0);
-  drawIcon(1,1,iconIndex == 1);
-  drawIcon(2,2,iconIndex == 2);
-  drawIcon(3,3,iconIndex == 3);
-  drawIcon(4,4,iconIndex == 4);
-  drawIcon(5,5,iconIndex == 5);
-  drawIcon(6,6,iconIndex == 6);
-  drawIcon(7,7,iconIndex == 7);
+
+  for (int i = 0; i < APPS; i++) {
+    if(apps[i].id<255) drawIcon(&apps[i],iconIndex == i);
+  }
 
   TV.set_cursor(20,2);
-  strcpy_P(txtBuf,TXT_MONCIAABOUT);
+  strcpy_P(txtBuf,TXT_OS);
   TV.print(txtBuf);TV.print(VERSION);    
 }
 
@@ -333,13 +390,9 @@ void appLook(){
         play_tune(TUNE_KB);
       } else if (c == PS2_ESC) {  
         wallpaper = wallpaperSave;
-        play_tune(TUNE_NEG);
+        play_tune(TUNE_NEG);        
         break;
-      } else if (c == PS2_ENTER) {  
-        dimScreen;
-        drawWindow(40,16);
-        strcpy_P(txtBuf,TXT_DONE);
-        TV.print(txtBuf);
+      } else if (c == PS2_ENTER) {
         play_tune(TUNE_POS);
         break;
       }
@@ -372,8 +425,8 @@ void activateScreensaver(){
   while (!keyboard.available()) {  
 
     if (screensaver == 0) { // sinusiod artist      
-      x = hw + sin(millis()*0.0077f) * 24 + (sin(millis()*0.017)*40); //40
-      y = hh + cos(millis()*0.0066f) * 24 + (sin(millis()*0.013)*24); //24
+      x = HALF_WIDTH + sin(millis()*0.0077f) * 24 + (sin(millis()*0.017)*40); //40
+      y = HALF_HEIGHT + cos(millis()*0.0066f) * 24 + (sin(millis()*0.013)*24); //24
       if ((millis()*10) % 50000 == 0) TV.fill(BLACK);
       TV.draw_line(lx,ly,x,y,WHITE);
       lx = x;
@@ -392,38 +445,19 @@ void activateScreensaver(){
   }
 }
 
-void drawSplashScreen(){
-  for (byte i=0; i<WIDTH, i+=8){
-    TV.bitmap(i*8,0,img_gradient); // 8
-  }
-  TV.bitmap(h2-28,hh-17,img_chip); // 56x37 -> 28x17
-  TV.bitmap(hw-40,hh+10,img_logo); // 80x11 -> 40x5
-  _delay_ms(500);
-}
-
-void dimScreen(){
-  static byte x,y;
-  for (y=0;y<HEIGHT;y=y+2){
-    TV.draw_row(y,0,WIDTH,BLACK);
-  }
-  for (x=0;x<WIDTH;x=x+2){
-    TV.draw_column(x,0,HEIGHT,BLACK);
-  }
-}
-
 void drawP1XDemo(){
   TV.clear_screen();
-  TV.bitmap(128-85,0,img_kj);
+  TV.bitmap(WIDTH-85,0,img_kj);
   _delay_ms(40);  
   TV.tone(329,150);_delay_ms(30);
-  TV.bitmap(24,24,img_p1x);
+  TV.bitmap(12,24,img_p1x);
   TV.tone(329,75);_delay_ms(30);
   _delay_ms(100);
   
   TV.select_font(font8x8);
-  strcpy_P(txtBuf, TXT_KRZYSZTOF);  TV.print(4,62,txtBuf);
-  strcpy_P(txtBuf, TXT_KRYSTIAN);  TV.print(4,72,txtBuf);
-  strcpy_P(txtBuf, TXT_JANKOWSKI);  TV.print(4,82,txtBuf);
+  strcpy_P(txtBuf, TXT_KRZYSZTOF);  TV.print(4,HEIGHT-30,txtBuf);
+  strcpy_P(txtBuf, TXT_KRYSTIAN);  TV.print(4,HEIGHT-20,txtBuf);
+  strcpy_P(txtBuf, TXT_JANKOWSKI);  TV.print(4,HEIGHT-10,txtBuf);
   TV.select_font(font4x6);
   
   TV.tone(392,75);_delay_ms(10);
@@ -444,6 +478,43 @@ void drawStar(Star *star, byte c) {
   TV.set_pixel(star->x, star->y, c);  
 }
 
+void aboutApp(){
+  const Vec2 pos = drawWindow(100,70);
+  
+  TV.set_cursor(pos.x,pos.y);
+  strcpy_P(txtBuf,TXT_BOARD);
+  TV.print(txtBuf);
+  
+  TV.set_cursor(pos.x,pos.y+10);
+  strcpy_P(txtBuf,TXT_OS);
+  TV.print(txtBuf);TV.print(VERSION);
+  
+  TV.set_cursor(pos.x,pos.y+20);
+  strcpy_P(txtBuf,TXT_CPU);
+  TV.print(txtBuf);
+
+  TV.set_cursor(pos.x,pos.y+30);
+  strcpy_P(txtBuf,TXT_RAM);
+  TV.print(txtBuf);
+  
+  TV.set_cursor(pos.x+20,pos.y+30);
+  TV.print(MAX_RAM-freeRam());
+
+  TV.set_cursor(pos.x,pos.y+40);
+  strcpy_P(txtBuf,TXT_TVOUT);
+  TV.print(txtBuf);
+  TV.set_cursor(pos.x+28,pos.y+40);
+  TV.print(WIDTH);
+  TV.set_cursor(pos.x+52,pos.y+40);
+  TV.print(HEIGHT);
+  
+  TV.set_cursor(pos.x,pos.y+58);
+  strcpy_P(txtBuf,TXT_CC);
+  TV.print(txtBuf);
+  
+  play_tune(TUNE_OS);   
+}
+
 void processCommand(){
   
   switch (iconIndex) {
@@ -460,15 +531,7 @@ void processCommand(){
       
      case 1: // ABOUT
       dimScreen();
-      drawWindow(88,50);
-      TV.set_cursor(20,8);
-      strcpy_P(txtBuf,TXT_MONCIAABOUT);
-      TV.print(txtBuf);TV.print(VERSION);    
-      TV.bitmap(hw-8,20,img_p1x);
-      TV.set_cursor(35,47);
-      strcpy_P(txtBuf,TXT_CC);
-      TV.print(txtBuf);
-      play_tune(TUNE_OS);   
+      aboutApp();
       break;  
       
      case 2: // LOOK
@@ -509,9 +572,11 @@ void processCommand(){
         play_tune(TUNE_NEG);
       break;
   }
-  
-  while (!keyboard.available()) {}
-  keyboard.read();
+
+  if(!apps[iconIndex].interactive){
+    while (!keyboard.available()) {}
+    keyboard.read();
+  }
 }
 
 void loop() {

@@ -2,19 +2,25 @@
 #ifndef STRINGS_H
 #define STRINGS_H
 
-const char TXT_ICON0[8] PROGMEM             = "Free\0";
-const char TXT_ICON1[8] PROGMEM             = "About\0";
-const char TXT_ICON2[8] PROGMEM             = "Look\0";
-const char TXT_ICON3[8] PROGMEM             = "P1X\0";
-const char TXT_ICON4[8] PROGMEM             = "Edit\0";
-const char TXT_ICON5[8] PROGMEM             = "Files\0";
-const char TXT_ICON6[8] PROGMEM             = "Moncia\0";
-const char TXT_ICON7[8] PROGMEM             = "SSaver\0";
+const char TXT_APP0[8] PROGMEM             = "Free\0";
+const char TXT_APP1[8] PROGMEM             = "About\0";
+const char TXT_APP2[8] PROGMEM             = "Look\0";
+const char TXT_APP3[8] PROGMEM             = "P1X\0";
+const char TXT_APP4[8] PROGMEM             = "Edit\0";
+const char TXT_APP5[8] PROGMEM             = "Files\0";
+const char TXT_APP6[8] PROGMEM             = "Moncia\0";
+const char TXT_APP7[8] PROGMEM             = "SSaver\0";
 const char TXT_BTNCLOSE[8] PROGMEM          = "Close\0";
 const char TXT_BTNOK[8] PROGMEM             = "OK\0";
 const char TXT_BTNCHANGE[8] PROGMEM         = "Change\0";
 const char TXT_UNKNOWN[24] PROGMEM          = "Unknown command\0";
-const char TXT_MONCIAABOUT[24] PROGMEM      = "MonciaOS: alpha \0";
+
+const char TXT_BOARD[24] PROGMEM            = "Arduino UNO R3\0";
+const char TXT_OS[24] PROGMEM               = "MonciaOS: alpha \0";
+const char TXT_CPU[24] PROGMEM              = "CPU: ATMega328p 16Mhz\0";
+const char TXT_RAM[24] PROGMEM              = "RAM: 0000 of 2048 bytes\0";
+const char TXT_TVOUT[24] PROGMEM            = "TVOUT: 000 x 00 1-bit\0";
+
 const char TXT_DEBUG[24] PROGMEM            = "DEBUG\0";
 const char TXT_DONE[24] PROGMEM             = "Done\0";
 const char TXT_CC[24] PROGMEM               = "CC0 2024 P1X\0";
