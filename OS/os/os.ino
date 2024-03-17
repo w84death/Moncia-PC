@@ -25,10 +25,12 @@ Quick log:
 - [done] demo prog
 - [done] basic icons
 - [release] alpha 6
+- -----------------------------------------
 - [done] big memory management refactor
 - [done] new look and feel
 - [done] updated look app
 - [release] alpha 7
+- -----------------------------------------
 - [done] screensaver
 - [done] dim background under windows
 - [done] arrows to select icons app
@@ -38,17 +40,28 @@ Quick log:
 - [done] nicer keyboard sound
 - [done] removed last command history
 - [release] alpha 8
+- -----------------------------------------
 - [done] stars screensaver
 - [done] screensaver setting in look app
 - [done] removed command prompt
-- [release] alpha 9 / 188b free
+- [release] alpha 9 / 188 bytes free
+- -----------------------------------------
 - [done] procedural corners
 - [done] dimmer dim background
 - [done] resolution changed to 112x88
 - [done] all code resolution independent
-- [release] alpha 10 / 302b free
+- [release] alpha 10 / 302 bytes free
+- -----------------------------------------
+- [done] optimized bitmaps files
+- [done] combined bitmaps into one header file
+- [done] combined fonts into one header file
+- [done] combined strings into one header file
+- [done] renaming function for consistent
+- ... WORK IN PROGRESS ...
+- -----------------------------------------
 
 ToDo:
+- refactor applications logic
 - SD card read/write
 - text editor prog
 - piano prog
@@ -62,17 +75,15 @@ ToDo:
 #include <math.h>
 #include <PS2Keyboard.h>
 #include <TVout.h>
-#include <TVoutfonts/font8x8.h>
-#include <TVoutfonts/font4x6.h>
 
-#include "title.h"
-#include "p1x.h"
-#include "kj.h"
+#include "fonts.h"
+#include "bitmaps.h"
+#include "strings.h"
 
 PS2Keyboard keyboard;
 TVout TV;
 
-#define VERSION 10
+#define VERSION 11
 
 #define KB_DATA 8
 #define KB_SYNC 3
@@ -90,39 +101,8 @@ TVout TV;
 #define ICONS_COLUMNS 3
 #define SCREENSAVERS 2
 
-const char TXT_ICON0[8] PROGMEM = "Free\0";
-const char TXT_ICON1[8] PROGMEM = "About\0";
-const char TXT_ICON2[8] PROGMEM = "Look\0";
-const char TXT_ICON3[8] PROGMEM = "P1X\0";
-const char TXT_ICON4[8] PROGMEM = "Edit\0";
-const char TXT_ICON5[8] PROGMEM = "Files\0";
-const char TXT_ICON6[8] PROGMEM = "Moncia\0";
-const char TXT_ICON7[8] PROGMEM = "SSaver\0";
-const char TXT_BTNCLOSE[8] PROGMEM = "Close\0";
-const char TXT_BTNOK[8] PROGMEM = "OK\0";
-const char TXT_BTNCHANGE[8] PROGMEM = "Change\0";
-const char TXT_UNKNOWN[24] PROGMEM = "Unknown command\0";
-const char TXT_MONCIAABOUT[24] PROGMEM = "MonciaOS: alpha \0";
-const char TXT_DEBUG[24] PROGMEM = "DEBUG\0";
-const char TXT_DONE[24] PROGMEM = "Done\0";
-const char TXT_CC[24] PROGMEM = "CC0 2024 P1X\0";
-const char TXT_FREERAM[24] PROGMEM = "Free RAM: \0";
-const char TXT_BYTES[24] PROGMEM = " bytes\0";
-const char TXT_LOOKTITLE_WP[24] PROGMEM = "Wallpaper:\0";
-const char TXT_LOOKTITLE_SS[24] PROGMEM = "ScreenSaver:\0";
-const char TXT_LOOK1[24] PROGMEM =      " * White fill      \0";
-const char TXT_LOOK2[24] PROGMEM =      " * Lines horizontal\0";
-const char TXT_LOOK3[24] PROGMEM =      " * Lines vertical  \0";
-const char TXT_LOOK4[24] PROGMEM =      " * Digital art     \0";
-const char TXT_LOOK5[24] PROGMEM =      " * Sinusoid Artist \0";
-const char TXT_LOOK6[24] PROGMEM =      " * Starfield       \0";
-const char TXT_LOOKTIP[24] PROGMEM =    "Use left/right arrows\0";
-const char TXT_KRZYSZTOF[24] PROGMEM = "Krzysztof\0";
-const char TXT_KRYSTIAN[24] PROGMEM = "Krystian\0";
-const char TXT_JANKOWSKI[24] PROGMEM = "Jankowski\0";
-
-const byte hw = (WIDTH/2);
-const byte hh = (HEIGHT/2);
+const byte hw PROGMEM = (WIDTH/2);
+const byte hh PROGMEM = (HEIGHT/2);
 
 char txtBuf[24];
 char txtBuf8[8];
@@ -135,15 +115,15 @@ struct Star {
   float x, y;
   float speed;
 };
-
 static Star stars[NUM_STARS];
+
 static int freeRam();
-void bootimage();
 void drawIcon(const byte pos, const byte id, const bool selected);
-void draw_desktop();
+void drawDesktop();
+void drawSplashScreen();
 void play_tune(const byte no);
 void drawWindow(const byte ww, const byte wh, const bool btn = true);
-void p1x();
+void drawP1XDemo();
 void processCommand();
 
 void setup()  {
@@ -155,26 +135,19 @@ void setup()  {
   randomSeed(analogRead(0));
   
   play_tune(TUNE_OS);
-  bootimage();
+  drawSplashScreen();
 
   for(int i=0; i<NUM_STARS; i++){
     resetStar(&stars[i]);
   }
 
   drawDesktop();
-
-  
 }
 
 static int freeRam() {
   extern int __heap_start, *__brkval; 
   int v; 
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
-}
-
-void bootimage(){
-  TV.bitmap(0,0,img_title); 
-  _delay_ms(500);
 }
 
 void drawIcon(const byte pos, const byte id, const bool selected = false){
@@ -419,12 +392,17 @@ void activateScreensaver(){
   }
 }
 
-void splash(){
-  TV.bitmap(0,0,img_title);   
+void drawSplashScreen(){
+  for (byte i=0; i<WIDTH, i+=8){
+    TV.bitmap(i*8,0,img_gradient); // 8
+  }
+  TV.bitmap(h2-28,hh-17,img_chip); // 56x37 -> 28x17
+  TV.bitmap(hw-40,hh+10,img_logo); // 80x11 -> 40x5
+  _delay_ms(500);
 }
 
 void dimScreen(){
-  static int x,y;
+  static byte x,y;
   for (y=0;y<HEIGHT;y=y+2){
     TV.draw_row(y,0,WIDTH,BLACK);
   }
@@ -433,7 +411,7 @@ void dimScreen(){
   }
 }
 
-void p1x(){
+void drawP1XDemo(){
   TV.clear_screen();
   TV.bitmap(128-85,0,img_kj);
   _delay_ms(40);  
@@ -450,7 +428,6 @@ void p1x(){
   
   TV.tone(392,75);_delay_ms(10);
 }
-
 
 void resetStar(Star *star) {
   star->x = random(32, WIDTH-32);
@@ -500,7 +477,7 @@ void processCommand(){
       break;  
       
      case 3: // P1X
-      p1x();
+      drawP1XDemo();
       break;  
       
      case 4:
@@ -521,7 +498,7 @@ void processCommand(){
      case 6:
      case 101: // MONCIA
       play_tune(TUNE_POS);
-      splash(); 
+      drawSplashScreen(); 
       break;  
       
      case 200: // UNKNOWN
