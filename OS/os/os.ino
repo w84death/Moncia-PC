@@ -119,12 +119,15 @@ TVout TV;
 #define NUM_STARS 16
 #define EDIT_BUFFER 250
 #define EDIT_BANKS 4
-
+#define EDIT_COLUMNS 22
+#define EDIT_MARGIN 12
+  
 const byte HALF_WIDTH PROGMEM = (WIDTH/2);
 const byte HALF_HEIGHT PROGMEM = (HEIGHT/2);
 
 char txtBuf[24];
 char txtBuf8[8];
+char editBuf[EDIT_BUFFER];
 int editBank = 0;
 
 struct App {
@@ -542,32 +545,53 @@ void clearEEPROM(){
   EEPROM.write(endBuf, '\0');
 }
 
-void editApp(){  
-  char editBuf[EDIT_BUFFER] PROGMEM;
-  int editIndex = 0;
-  int lastIndex = 0;
-  
-  drawBackground(WHITE,BLACK);
-  TV.set_cursor(HALF_WIDTH-8,1);
-  strcpy_P(txtBuf,TXT_APP4);
-  TV.print(txtBuf);
+
+
+void editRedraw(){
 
   TV.set_cursor(HALF_WIDTH+12,1);
   strcpy_P(txtBuf,TXT_BANK);
   TV.print(txtBuf);
   TV.print(editBank+1);
-  
-  char readChar = " ";
-  TV.set_cursor(0,8);
-  
-  while (readChar != '\0' and editIndex<EDIT_BUFFER){
-    readChar = EEPROM.read(editIndex + EDIT_BUFFER*editBank);
-    editBuf[editIndex++] = readChar;
-    TV.print(readChar);
+
+  TV.draw_rect(EDIT_MARGIN,EDIT_MARGIN,WIDTH-EDIT_MARGIN,HEIGHT-EDIT_MARGIN,WHITE,WHITE);
+  for(int i=0; i<EDIT_BUFFER and editBuf[i]!='\0'; i++){
+    TV.set_cursor(EDIT_MARGIN+(i%EDIT_COLUMNS)*4,EDIT_MARGIN+(i/EDIT_COLUMNS)*6);
+    TV.print(editBuf[i]);
   }
+
+}
+
+int editReadBank(){
+  int i = 0;
+  char readChar = " ";  
+  while (readChar != '\0' and i<EDIT_BUFFER){
+    readChar = EEPROM.read(i + EDIT_BUFFER*editBank);
+    editBuf[i++] = readChar;
+  }
+  return i-1;
+}
+
+void editApp(){  
   
-  editIndex--;
+  int editIndex = 0;
+  int lastIndex = 0;
+  byte cursorIndex = 0;  
+  
+  //drawBackground(WHITE,BLACK);
+  TV.fill(WHITE);
+  
+  TV.set_cursor(HALF_WIDTH-8,1);
+  strcpy_P(txtBuf,TXT_APP4);
+  TV.print(txtBuf);
+
+  
+  editIndex = editReadBank();
   lastIndex = editIndex;
+  cursorIndex = editIndex;
+  
+  editRedraw();
+  
    
   while (!keyboard.available()) {}
   while (char c = keyboard.read()) {     
@@ -575,49 +599,64 @@ void editApp(){
       for (int i = lastIndex; i < editIndex; i++) {
         EEPROM.write(i + EDIT_BUFFER*editBank, editBuf[i]);
       }
-      EEPROM.write(editIndex + EDIT_BUFFER*editBank, '\0');    
-      break;
+      EEPROM.write(editIndex + EDIT_BUFFER*editBank, '\0');      
+      
+      drawWindow(88,14);                
+      strcpy_P(txtBuf,TXT_DONE);
+      TV.print(txtBuf);
+      play_tune(TUNE_POS);
+      while (!keyboard.available()) {}
+      keyboard.read();
+      editRedraw();
+      
     } else if (c == PS2_ESC) {
       break;      
-    } else if (c == PS2_LEFTARROW) {            
-      break;
+    } else if (c == PS2_LEFTARROW or c == PS2_DELETE) {            
+      if (editIndex>0){         
+        editBuf[--editIndex] = '\0';      
+        cursorIndex--;
+        if (editIndex < lastIndex) {
+          lastIndex = editIndex;
+        }       
+        TV.set_cursor(EDIT_MARGIN+(cursorIndex%EDIT_COLUMNS)*4,EDIT_MARGIN+(cursorIndex/EDIT_COLUMNS)*6);
+        editRedraw();
+      }
     } else if (c == PS2_RIGHTARROW) {      
-      break;
+      /*if (cursorIndex<EDIT_BUFFER){ 
+        cursorIndex++;
+      }*/
     } else if (c == PS2_UPARROW) {  
-      break;
+      /*if (cursorIndex-EDIT_COLUMNS>0){ 
+        cursorIndex-=EDIT_COLUMNS;
+      }*/
     } else if (c == PS2_DOWNARROW) {      
-      break;
-    } else if (c == PS2_F1) {
-      editBank = 0;
-      break;
-    } else if (c == PS2_F2) {
-      editBank = 1;
-      break;
-    } else if (c == PS2_F3) {
-      editBank = 2;
-      break;
-    } else if (c == PS2_F4) {
-      editBank = 3;
-      break;
+      /*if (cursorIndex+EDIT_COLUMNS<EDIT_BUFFER){ 
+        cursorIndex+=EDIT_COLUMNS;
+      } */     
     } else if (c == PS2_PAGEDOWN) {
       if (editBank > 0) {
         editBank--;
-      }
-      break;
+      }      
+      editIndex = editReadBank();
+      lastIndex = editIndex;
+      cursorIndex = editIndex-1;
+      editRedraw();
     } else if (c == PS2_PAGEUP) {
       if (editBank < EDIT_BANKS-1) {
         editBank++;
-      }
-      break;
-    } else if (c == PS2_DELETE) {
-      clearEEPROM();
-      break;
+      }      
+      editIndex = editReadBank();
+      lastIndex = editIndex;
+      cursorIndex = editIndex-1;
+      editRedraw();
     }else{
       if (editIndex<EDIT_BUFFER) {
         editBuf[editIndex++] = c;      
+        cursorIndex++;
+        TV.set_cursor(EDIT_MARGIN+(cursorIndex%EDIT_COLUMNS)*4,EDIT_MARGIN+(cursorIndex/EDIT_COLUMNS)*6);
         TV.print(c);
       }
-    }    
+    }
     while (!keyboard.available()) {}
   }  
 
