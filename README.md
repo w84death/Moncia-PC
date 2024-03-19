@@ -2,32 +2,20 @@
 
 > This is my computer. There are many like it, but this one is mine.
 > My computer is my best friend. It is my life. I must master it as I must master my life. 
+Based on 8-bit microcontroller (Arduino Uno) and home made operating system.
 
-Based on 8-bit microcontroller (Arduino Uno) and home made operatin system (MonciaOS) makes this dream personal computer.
-
-It has input from a regular PS/2 keyboard and can output to the black &white TV. User interface is handled by graphical OS.
+It has input from a regular PS/2 keyboard and can output black &white image to the TV. User interface is graphical.
 
 Read more at [smol.p1x.in/moncia-pc/](https://smol.p1x.in/moncia-pc/).
 
-## Personal Computer
-### Breadboard Edition
-![MoniciaPC breadboard edition](PC/pc-0.gif)
 
-### Arduino Hat
 ![MoniciaPC as Arduino Hat](PC/pc-1.jpg)
 
 ## Operating System
 
-### Alpha 7
-![MoniciaOS alpha 7](OS/os-2.jpeg)
-![MoniciaOS alpha 7](OS/os-3.jpeg)
-![MoniciaOS alpha 7](OS/os-4.jpeg)
-![MoniciaOS alpha 7](OS/os-5.jpeg)
+![MoniciaOS alpha 8 bootsplash](OS/media/os-2.jpeg)
+![MoniciaOS alpha 8 desktop](OS/media/os-3.jpeg)
+![MoniciaOS alpha 8 windows](OS/media/os-4.jpeg)
+![MoniciaOS alpha 8 about](OS/media/os-5.jpeg)
 
-### Alpha 8
-
-> Sketch uses 19916 bytes (61%) of program storage space. Maximum is 32256 bytes.
-> Global variables use 272 bytes (13%) of dynamic memory, leaving 1776 bytes for local variables. Maximum is 2048 bytes.
-
-Memory free: 232 bytes
 
