@@ -3,7 +3,7 @@
 /*
 ------------------------------------
 MonciaOS
-Version alpha 11 - 2024-03-17
+Version alpha 12 - 2024-03-19
 
 CC0 2024 P1X
 Made by Krzysztof Krystian Jankowski
@@ -66,10 +66,11 @@ Quick log:
 - [done] reduced to 16 stars - 355b free
 - [done] EEPROM storage
 - [done] base text editor (4 banks of 250 characters)
--
-- cursors for editing
-- changing banks
-- 
+- [done] editor can edit files (Hamingway mode, only backspace)
+- [done] editor can change banks
+- [done] problem only 101 bytes free - reduced stars to 4, back to 245 bytes
+- [done] edit shows character count
+- [release] alpha 12 / 249 bytes free
 - -----------------------------------------
 
 
@@ -116,10 +117,11 @@ TVout TV;
 #define ICONS 7
 #define ICONS_COLUMNS 3
 #define SCREENSAVER_TIMEOUT 60000
-#define NUM_STARS 16
-#define EDIT_BUFFER 250
+#define NUM_STARS 4
+#define EDIT_BUFFER 242
 #define EDIT_BANKS 4
 #define EDIT_COLUMNS 22
+#define EDIT_ROWS 12
 #define EDIT_MARGIN 12
   
 const byte HALF_WIDTH PROGMEM = (WIDTH/2);
@@ -548,18 +550,18 @@ void clearEEPROM(){
 
 
 void editRedraw(){
-
-  TV.set_cursor(HALF_WIDTH+12,1);
-  strcpy_P(txtBuf,TXT_BANK);
-  TV.print(txtBuf);
-  TV.print(editBank+1);
-
-  TV.draw_rect(EDIT_MARGIN,EDIT_MARGIN,WIDTH-EDIT_MARGIN,HEIGHT-EDIT_MARGIN,WHITE,WHITE);
+  TV.draw_rect(EDIT_MARGIN,EDIT_MARGIN,4*EDIT_COLUMNS,6*EDIT_ROWS,WHITE,WHITE);
   for(int i=0; i<EDIT_BUFFER and editBuf[i]!='\0'; i++){
     TV.set_cursor(EDIT_MARGIN+(i%EDIT_COLUMNS)*4,EDIT_MARGIN+(i/EDIT_COLUMNS)*6);
     TV.print(editBuf[i]);
   }
+}
 
+void editStatsRedraw(){
+  TV.set_cursor(HALF_WIDTH+12,1);
+  strcpy_P(txtBuf,TXT_BANK);
+  TV.print(txtBuf);
+  TV.print(editBank+1);
 }
 
 int editReadBank(){
@@ -572,14 +574,19 @@ int editReadBank(){
   return i-1;
 }
 
+void editCounterRedraw(const int editIndex){
+  TV.set_cursor(HALF_WIDTH-20,HEIGHT-8);
+  TV.print(editIndex);TV.print(" of ");TV.print(EDIT_BUFFER);
+}
+
 void editApp(){  
   
   int editIndex = 0;
   int lastIndex = 0;
   byte cursorIndex = 0;  
   
-  //drawBackground(WHITE,BLACK);
-  TV.fill(WHITE);
+  drawBackground(WHITE,BLACK);
+  //TV.fill(WHITE);
   
   TV.set_cursor(HALF_WIDTH-8,1);
   strcpy_P(txtBuf,TXT_APP4);
@@ -591,7 +598,10 @@ void editApp(){
   cursorIndex = editIndex;
   
   editRedraw();
+  editStatsRedraw();
+  editCounterRedraw(editIndex);
   
+
    
   while (!keyboard.available()) {}
   while (char c = keyboard.read()) {     
@@ -601,14 +611,12 @@ void editApp(){
       }
       EEPROM.write(editIndex + EDIT_BUFFER*editBank, '\0');      
       
-      drawWindow(88,14);                
+      drawWindow(40,14, false);                
       strcpy_P(txtBuf,TXT_DONE);
       TV.print(txtBuf);
       play_tune(TUNE_POS);
-      while (!keyboard.available()) {}
-      keyboard.read();
+      _delay_ms(200);
       editRedraw();
-      
     } else if (c == PS2_ESC) {
       break;      
     } else if (c == PS2_LEFTARROW or c == PS2_DELETE) {            
@@ -641,6 +649,7 @@ void editApp(){
       lastIndex = editIndex;
       cursorIndex = editIndex-1;
       editRedraw();
+      editStatsRedraw();
     } else if (c == PS2_PAGEUP) {
       if (editBank < EDIT_BANKS-1) {
         editBank++;
@@ -649,6 +658,7 @@ void editApp(){
       lastIndex = editIndex;
       cursorIndex = editIndex-1;
       editRedraw();
+      editStatsRedraw();
     }else{
       if (editIndex<EDIT_BUFFER) {
         editBuf[editIndex++] = c;      
@@ -657,6 +667,7 @@ void editApp(){
         TV.print(c);
       }
     }
+    editCounterRedraw(editIndex);
     while (!keyboard.available()) {}
   }  
 
